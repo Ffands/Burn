@@ -227,9 +227,11 @@ object LanguageDetectorOffline {
     fun detect(text: String): String {
         if (text.isBlank()) return "und"
 
+        val sanitized = OfflineTranslationEngine.sanitizeOcrHomoglyphs(text)
+
         var cyrillicCount = 0
         var latinCount = 0
-        for (ch in text) {
+        for (ch in sanitized) {
             val code = ch.code
             if (code in 0x0400..0x04FF) {
                 cyrillicCount++
@@ -242,11 +244,11 @@ object LanguageDetectorOffline {
             return "ru"
         }
 
-        if (GERMAN_UMLAUTS.containsMatchIn(text)) {
+        if (GERMAN_UMLAUTS.containsMatchIn(sanitized)) {
             return "de"
         }
 
-        val words = text.lowercase().split(Regex("[^\\p{L}]+")).filter { it.length > 1 }
+        val words = sanitized.lowercase().split(Regex("[^\\p{L}]+")).filter { it.length > 1 }
         if (words.isEmpty()) {
             return if (cyrillicCount > 0) "ru" else if (latinCount > 0) "en" else "und"
         }

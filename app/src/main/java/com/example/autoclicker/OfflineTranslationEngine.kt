@@ -109,8 +109,62 @@ object OfflineTranslationEngine {
         "content" to mapOf("ru" to "контент", "de" to "inhalt")
     )
 
+    fun sanitizeOcrHomoglyphs(str: String): String {
+        var cyrillicCount = 0
+        var latinCount = 0
+        for (ch in str) {
+            val code = ch.code
+            if (code in 0x0400..0x04FF) cyrillicCount++
+            else if ((code in 65..90) || (code in 97..122)) latinCount++
+        }
+
+        if (latinCount > cyrillicCount && latinCount > 0) {
+            // Predominantly Latin sentence, convert OCR stray Cyrillic confusion to Latin
+            return str
+                .replace('п', 'n')
+                .replace('П', 'N')
+                .replace('т', 'm')
+                .replace('Т', 'M')
+                .replace('р', 'p')
+                .replace('Р', 'P')
+                .replace('с', 'c')
+                .replace('С', 'C')
+                .replace('е', 'e')
+                .replace('Е', 'E')
+                .replace('а', 'a')
+                .replace('А', 'A')
+                .replace('о', 'o')
+                .replace('О', 'O')
+                .replace('х', 'x')
+                .replace('Х', 'X')
+                .replace('у', 'y')
+                .replace('У', 'Y')
+                .replace('і', 'i')
+                .replace('І', 'I')
+        } else if (cyrillicCount > latinCount && cyrillicCount > 0) {
+            // Predominantly Cyrillic sentence, convert OCR stray Latin confusion to Cyrillic
+            return str
+                .replace('p', 'р')
+                .replace('P', 'Р')
+                .replace('c', 'с')
+                .replace('C', 'С')
+                .replace('e', 'е')
+                .replace('E', 'Е')
+                .replace('a', 'а')
+                .replace('A', 'А')
+                .replace('o', 'о')
+                .replace('O', 'О')
+                .replace('x', 'х')
+                .replace('X', 'Х')
+                .replace('y', 'у')
+                .replace('Y', 'У')
+        }
+        return str
+    }
+
     private fun normalizeForMatch(str: String): String {
-        return str.lowercase()
+        val sanitized = sanitizeOcrHomoglyphs(str)
+        return sanitized.lowercase()
             .replace(Regex("[.,!?:;—–\"'()]+"), " ")
             .replace(Regex("\\s+"), " ")
             .trim()
