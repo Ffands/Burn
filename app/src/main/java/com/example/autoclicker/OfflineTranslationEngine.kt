@@ -94,7 +94,7 @@ object OfflineTranslationEngine {
                     "de" -> p.de
                     else -> p.ru
                 }
-                return res.replaceFirstChar { it.uppercase() }
+                return res.replaceFirstChar { it.uppercaseChar() }
             }
         }
 
@@ -104,13 +104,13 @@ object OfflineTranslationEngine {
             val lower = token.lowercase()
             val match = DICTIONARY[lower]?.get(targetLang)
             if (match != null) {
-                if (token.isNotEmpty() && token[0].isUpperCase()) match.replaceFirstChar { it.uppercase() } else match
+                if (token.isNotEmpty() && token[0].isUpperCase()) match.replaceFirstChar { it.uppercaseChar() } else match
             } else {
                 token
             }
         }
 
         val result = translated.joinToString(" ").replace(Regex("\\s+"), " ").trim()
-        return if (result.isNotBlank()) result.replaceFirstChar { it.uppercase() } else text
+        return if (result.isNotBlank()) result.replaceFirstChar { it.uppercaseChar() } else text
     }
 }

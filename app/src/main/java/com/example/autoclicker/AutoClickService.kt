@@ -1,6 +1,8 @@
 package com.example.autoclicker
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityService.ScreenshotResult
+import android.accessibilityservice.AccessibilityService.TakeScreenshotCallback
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.Handler
@@ -11,6 +13,7 @@ import com.huawei.hms.mlsdk.common.MLApplication
 import com.huawei.hms.mlsdk.common.MLFrame
 import com.huawei.hms.mlsdk.text.MLAnalyzerFactory
 import com.huawei.hms.mlsdk.text.MLLocalTextSetting
+import com.huawei.hms.mlsdk.text.MLText
 import com.huawei.hms.mlsdk.text.MLTextAnalyzer
 
 class AutoClickService : AccessibilityService() {
@@ -91,72 +94,81 @@ class AutoClickService : AccessibilityService() {
                 val enhanced = enhanceBitmapForOcr(bitmap)
                 val analyzer = getHuaweiAnalyzer("ru")
                 val frame = MLFrame.fromBitmap(enhanced)
-                val task = analyzer.asyncAnalyseFrame(frame)
-                val result = com.huawei.hmf.tasks.Tasks.await(task)
 
-                if (enhanced != bitmap) enhanced.recycle()
+                analyzer.asyncAnalyseFrame(frame)
+                    .addOnSuccessListener { result: MLText? ->
+                        if (enhanced != bitmap && !enhanced.isRecycled) enhanced.recycle()
+                        if (!bitmap.isRecycled) bitmap.recycle()
 
-                val rawItems = mutableListOf<RawOcrItem>()
-                val metrics = resources.displayMetrics
-                val screenW = metrics.widthPixels
-                val screenH = metrics.heightPixels
+                        val rawItems = mutableListOf<RawOcrItem>()
+                        val metrics = resources.displayMetrics
+                        val screenW = metrics.widthPixels
+                        val screenH = metrics.heightPixels
 
-                if (result != null) {
-                    var itemCounter = 0
-                    for (block in result.blocks) {
-                        for (line in block.contents) {
-                            val lineText = line.stringValue
-                            if (lineText.isNullOrBlank()) continue
-                            
-                            val normText = normalizeCyrillic(lineText)
-                            rawItems.add(
-                                RawOcrItem(
-                                    id = "line_${itemCounter++}",
-                                    text = normText,
-                                    rect = line.border ?: Rect(0, 0, 0, 0)
-                                )
+                        if (result != null) {
+                            var itemCounter = 0
+                            for (block in result.blocks) {
+                                for (line in block.contents) {
+                                    val lineText = line.stringValue
+                                    if (lineText.isNullOrBlank()) continue
+                                    
+                                    val normText = normalizeCyrillic(lineText)
+                                    rawItems.add(
+                                        RawOcrItem(
+                                            id = "line_${itemCounter++}",
+                                            text = normText,
+                                            rect = line.border ?: Rect(0, 0, 0, 0)
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        // Pure geometric clustering (no punctuation dependency)
+                        val clustered = GeometryHelper.clusterBlocksGeometrically(rawItems, 1.25f)
+
+                        // Process translations & nearest corners
+                        val translationBlocks = clustered.mapIndexed { index, item ->
+                            val detected = LanguageDetectorOffline.detect(item.text)
+                            val isSkipped = detected == targetLanguage
+                            val nearest = GeometryHelper.calculateNearestCorner(item.rect, screenW, screenH)
+
+                            val translated = if (isSkipped) {
+                                item.text
+                            } else {
+                                OfflineTranslationEngine.translate(item.text, detected, targetLanguage)
+                            }
+
+                            TranslationBlock(
+                                id = "block_$index",
+                                originalText = item.text,
+                                translatedText = translated,
+                                detectedLang = detected,
+                                targetLang = targetLanguage,
+                                rect = item.rect,
+                                nearestCorner = nearest,
+                                isSkippedSameLang = isSkipped
                             )
                         }
+
+                        handler.post {
+                            if (::uiManager.isInitialized) {
+                                uiManager.renderTranslationBlocks(translationBlocks)
+                            }
+                        }
                     }
-                }
-                bitmap.recycle()
-
-                // Pure geometric clustering (no punctuation dependency)
-                val clustered = GeometryHelper.clusterBlocksGeometrically(rawItems, 1.25f)
-
-                // Process translations & nearest corners
-                val translationBlocks = clustered.mapIndexed { index, item ->
-                    val detected = LanguageDetectorOffline.detect(item.text)
-                    val isSkipped = detected == targetLanguage
-                    val nearest = GeometryHelper.calculateNearestCorner(item.rect, screenW, screenH)
-
-                    val translated = if (isSkipped) {
-                        item.text
-                    } else {
-                        OfflineTranslationEngine.translate(item.text, detected, targetLanguage)
+                    .addOnFailureListener { e ->
+                        if (enhanced != bitmap && !enhanced.isRecycled) enhanced.recycle()
+                        if (!bitmap.isRecycled) bitmap.recycle()
+                        handler.post {
+                            Toast.makeText(this@AutoClickService, "Ошибка распознавания: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
                     }
-
-                    TranslationBlock(
-                        id = "block_$index",
-                        originalText = item.text,
-                        translatedText = translated,
-                        detectedLang = detected,
-                        targetLang = targetLanguage,
-                        rect = item.rect,
-                        nearestCorner = nearest,
-                        isSkippedSameLang = isSkipped
-                    )
-                }
-
-                handler.post {
-                    if (::uiManager.isInitialized) {
-                        uiManager.renderTranslationBlocks(translationBlocks)
-                    }
-                }
             } catch (e: Exception) {
                 e.printStackTrace()
+                if (!bitmap.isRecycled) bitmap.recycle()
                 handler.post {
-                    Toast.makeText(this@AutoClickService, "Ошибка распознавания: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@AutoClickService, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }.start()

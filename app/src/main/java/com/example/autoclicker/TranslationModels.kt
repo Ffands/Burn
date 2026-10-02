@@ -87,10 +87,10 @@ object GeometryHelper {
     ): List<RawOcrItem> {
         if (items.size <= 1) return items
 
-        val sorted = items.sortedWith(Comparator { a, b ->
+        val sorted = items.sortedWith { a, b ->
             val yDiff = a.rect.top - b.rect.top
             if (Math.abs(yDiff) > 8) yDiff else a.rect.left - b.rect.left
-        })
+        }
 
         val clusters = mutableListOf<MutableList<RawOcrItem>>()
 
