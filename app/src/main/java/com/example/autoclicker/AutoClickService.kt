@@ -222,13 +222,11 @@ class AutoClickService : AccessibilityService() {
 
     private fun getHuaweiAnalyzer(lang: String): MLTextAnalyzer {
         synchronized(ocrLock) {
-            val hLang = if (lang == "eng") "en" else "ru"
             if (mlTextAnalyzer != null) return mlTextAnalyzer!!
 
             MLApplication.getInstance().apiKey = "dummy_api_key_for_local_use_only"
             val setting = MLLocalTextSetting.Factory()
                 .setOCRMode(MLLocalTextSetting.OCR_DETECT_MODE)
-                .setLanguage(hLang)
                 .create()
             mlTextAnalyzer = MLAnalyzerFactory.getInstance().getLocalTextAnalyzer(setting)
             return mlTextAnalyzer!!

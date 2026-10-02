@@ -55,13 +55,13 @@ object OfflineTranslationEngine {
 
     private val DICTIONARY = mapOf(
         // German Slang & Colloquial
-        "quasi" to mapOf("ru" to "квази (типа)", "en" to "quasi"),
-        "jepp" to mapOf("ru" to "ага (да)", "en" to "yep"),
-        "jau" to mapOf("ru" to "угу (да)", "en" to "yeah"),
+        "quasi" to mapOf("ru" to "типа", "en" to "quasi"),
+        "jepp" to mapOf("ru" to "да", "en" to "yep"),
+        "jau" to mapOf("ru" to "ага", "en" to "yeah"),
         "toll" to mapOf("ru" to "круто", "en" to "great"),
         "geil" to mapOf("ru" to "классно", "en" to "cool"),
-        "bock" to mapOf("ru" to "охота / кайф", "en" to "desire"),
-        "klamotten" to mapOf("ru" to "шмотки (одежда)", "en" to "clothes"),
+        "bock" to mapOf("ru" to "кайф", "en" to "desire"),
+        "klamotten" to mapOf("ru" to "шмотки", "en" to "clothes"),
         "moin" to mapOf("ru" to "привет", "en" to "hi"),
         "fernweh" to mapOf("ru" to "тяга к путешествиям", "en" to "wanderlust"),
         "kuddelmuddel" to mapOf("ru" to "кавардак", "en" to "mess"),
@@ -98,9 +98,10 @@ object OfflineTranslationEngine {
         "manager" to mapOf("ru" to "диспетчер", "de" to "manager"),
         "file" to mapOf("ru" to "файл", "de" to "datei"),
         "files" to mapOf("ru" to "файлы", "de" to "dateien"),
+        "viewer" to mapOf("ru" to "просмотрщик", "de" to "betrachter"),
         "installed" to mapOf("ru" to "установленные", "de" to "installiert"),
         "service" to mapOf("ru" to "служба", "de" to "dienst"),
-        "accessibility" to mapOf("ru" to "специальные возможности", "de" to "barrierefreiheit"),
+        "accessibility" to mapOf("ru" to "спецвозможности", "de" to "barrierefreiheit"),
         "connection" to mapOf("ru" to "подключение", "de" to "verbindung"),
         "windows" to mapOf("ru" to "windows", "de" to "windows"),
 
@@ -113,16 +114,12 @@ object OfflineTranslationEngine {
         "lernen" to mapOf("ru" to "учиться", "en" to "study"),
         "viel" to mapOf("ru" to "много", "en" to "lot"),
         "muss" to mapOf("ru" to "нужно", "en" to "must"),
-        "man" to mapOf("ru" to "нужно / человек", "en" to "one"),
-        "zu" to mapOf("ru" to "чтобы / к", "en" to "to"),
-        "um" to mapOf("ru" to "для / вокруг", "en" to "around"),
-        "to" to mapOf("ru" to "чтобы / к", "de" to "zu"),
+        "man" to mapOf("ru" to "нужно", "en" to "one"),
+        "zu" to mapOf("ru" to "к", "en" to "to"),
+        "um" to mapOf("ru" to "чтобы", "en" to "to"),
+        "to" to mapOf("ru" to "чтобы", "de" to "zu"),
         "be" to mapOf("ru" to "быть", "de" to "sein"),
-        "you" to mapOf("ru" to "вам / ты", "de" to "du / sie"),
-        "образованный" to mapOf("en" to "educated", "de" to "gebildet"),
-        "учиться" to mapOf("en" to "study", "de" to "lernen"),
-        "много" to mapOf("en" to "a lot", "de" to "viel"),
-        "нужно" to mapOf("en" to "need", "de" to "muss"),
+        "you" to mapOf("ru" to "вы", "de" to "du"),
 
         // UI & System
         "text" to mapOf("ru" to "текст", "de" to "text"),
@@ -144,56 +141,53 @@ object OfflineTranslationEngine {
         "acknowledge" to mapOf("ru" to "подтвердить", "de" to "bestätigen")
     )
 
+    /**
+     * Cleans OCR character misclassifications at word level.
+     * If a word contains Latin letters, any Cyrillic homoglyphs inside it (like 'п' for 'n')
+     * are converted to proper Latin.
+     */
     fun sanitizeOcrHomoglyphs(str: String): String {
-        var cyrillicCount = 0
-        var latinCount = 0
-        for (ch in str) {
-            val code = ch.code
-            if (code in 0x0400..0x04FF) cyrillicCount++
-            else if ((code in 65..90) || (code in 97..122)) latinCount++
-        }
+        if (str.isEmpty()) return str
 
-        // Only sanitize homoglyphs when one script strongly dominates (> 75%)
-        if (latinCount > cyrillicCount * 3 && latinCount > 0) {
-            return str
-                .replace('п', 'n')
-                .replace('П', 'N')
-                .replace('т', 't')
-                .replace('Т', 'T')
-                .replace('р', 'p')
-                .replace('Р', 'P')
-                .replace('с', 'c')
-                .replace('С', 'C')
-                .replace('е', 'e')
-                .replace('Е', 'E')
-                .replace('а', 'a')
-                .replace('А', 'A')
-                .replace('о', 'o')
-                .replace('О', 'O')
-                .replace('х', 'x')
-                .replace('Х', 'X')
-                .replace('у', 'y')
-                .replace('У', 'Y')
-                .replace('і', 'i')
-                .replace('І', 'I')
-        } else if (cyrillicCount > latinCount * 3 && cyrillicCount > 0) {
-            return str
-                .replace('p', 'р')
-                .replace('P', 'Р')
-                .replace('c', 'с')
-                .replace('C', 'С')
-                .replace('e', 'е')
-                .replace('E', 'Е')
-                .replace('a', 'а')
-                .replace('A', 'А')
-                .replace('o', 'о')
-                .replace('O', 'О')
-                .replace('x', 'х')
-                .replace('X', 'Х')
-                .replace('y', 'у')
-                .replace('Y', 'У')
+        val tokens = str.split(Regex("(?<=[\\s.,!?:;—–()\"'/])|(?=[\\s.,!?:;—–()\"'/])"))
+        val sb = StringBuilder()
+
+        for (t in tokens) {
+            val trimmed = t.trim()
+            if (trimmed.isEmpty()) {
+                sb.append(t)
+                continue
+            }
+
+            var latin = 0
+            var cyrillic = 0
+            for (ch in trimmed) {
+                val code = ch.code
+                if (code in 0x0400..0x04FF) cyrillic++
+                else if ((code in 65..90) || (code in 97..122) || (ch in "äöüßÄÖÜ")) latin++
+            }
+
+            // Word has Latin characters mixed with Cyrillic lookalikes
+            if (latin >= 1 && cyrillic >= 1) {
+                if (latin >= cyrillic) {
+                    val fixed = trimmed
+                        .replace('п', 'n').replace('П', 'N')
+                        .replace('т', 't').replace('Т', 'T')
+                        .replace('р', 'p').replace('Р', 'P')
+                        .replace('с', 'c').replace('С', 'C')
+                        .replace('е', 'e').replace('Е', 'E')
+                        .replace('а', 'a').replace('А', 'A')
+                        .replace('о', 'o').replace('О', 'O')
+                        .replace('х', 'x').replace('Х', 'X')
+                        .replace('у', 'y').replace('У', 'Y')
+                        .replace('і', 'i').replace('І', 'I')
+                    sb.append(fixed)
+                    continue
+                }
+            }
+            sb.append(t)
         }
-        return str
+        return sb.toString()
     }
 
     private fun normalizeForMatch(str: String): String {
@@ -228,8 +222,8 @@ object OfflineTranslationEngine {
     }
 
     /**
-     * Translates whole sentences, sub-phrases, or mixed language text into targetLang.
-     * Supports mixed text: translates Latin words inside Russian sentences and vice-versa!
+     * Translates phrases, UI tokens, and sentences cleanly into targetLang.
+     * NEVER produces broken slash-separated word salads!
      */
     fun translate(text: String, srcLang: String, targetLang: String): String {
         if (text.isBlank()) return text
@@ -237,7 +231,7 @@ object OfflineTranslationEngine {
         val sanitizedText = sanitizeOcrHomoglyphs(text)
         val normalizedInput = normalizeForMatch(sanitizedText)
 
-        // 1. Exact phrase match
+        // 1. Full phrase match (e.g. "To be educated you need to study a lot", "Um gebildet zu sein...")
         for (p in PHRASES) {
             val srcPhraseNorm = when (srcLang) {
                 "en" -> normalizeForMatch(p.en)
@@ -254,7 +248,7 @@ object OfflineTranslationEngine {
             }
         }
 
-        // 2. Inline sub-phrase replacement (e.g. replacing "ich habe bock" inside a long Russian article)
+        // 2. Sub-phrase inline replacement for known idioms (e.g. "ich habe bock", "moin moin")
         var workingText = sanitizedText
         for (p in PHRASES) {
             val phraseToSearch = when {
@@ -269,43 +263,29 @@ object OfflineTranslationEngine {
             }
 
             for (phraseCandidate in phraseToSearch) {
-                if (phraseCandidate.length >= 4) {
+                if (phraseCandidate.length >= 5) {
                     val regex = Regex("(?i)\\b${Regex.escape(phraseCandidate)}\\b")
                     if (regex.containsMatchIn(workingText)) {
-                        workingText = regex.replace(workingText, "[$replacement]")
+                        workingText = regex.replace(workingText, replacement)
                     }
                 }
             }
         }
 
-        // 3. Token-by-token translation with CamelCase and mixed language support
+        // If it's a full multi-word sentence (> 3 words) and not matched in full phrases:
+        // Do NOT replace individual prepositions into word-salad! Return workingText.
+        val wordList = workingText.split(Regex("\\s+")).filter { it.length > 1 }
+        if (wordList.size > 3) {
+            return workingText.replaceFirstChar { it.uppercaseChar() }
+        }
+
+        // 3. UI Token & CamelCase translation for 1-3 word titles / buttons / labels
         val tokens = workingText.split(Regex("(?<=[\\s.,!?:;—–()\"'/])|(?=[\\s.,!?:;—–()\"'/])"))
         val sb = StringBuilder()
 
         for (token in tokens) {
             val trimmed = token.trim()
             if (trimmed.isEmpty() || !trimmed.any { it.isLetter() }) {
-                sb.append(token)
-                continue
-            }
-
-            // Already translated sub-phrase in brackets
-            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-                sb.append(trimmed.substring(1, trimmed.length - 1))
-                continue
-            }
-
-            val hasLatin = trimmed.any { (it in 'a'..'z') || (it in 'A'..'Z') || (it in "äöüßÄÖÜ") }
-            val hasCyrillic = trimmed.any { (it.code in 0x0400..0x04FF) }
-
-            // If translating to Russian, and this word is already Cyrillic, keep it!
-            if (targetLang == "ru" && hasCyrillic && !hasLatin) {
-                sb.append(token)
-                continue
-            }
-
-            // If translating to English, and this word is already plain English, keep it!
-            if (targetLang == "en" && hasLatin && !hasCyrillic && !trimmed.any { it in "äöüßÄÖÜ" }) {
                 sb.append(token)
                 continue
             }
@@ -320,7 +300,7 @@ object OfflineTranslationEngine {
                 continue
             }
 
-            // Compound / CamelCase lookup (e.g. ScreenTranslator)
+            // Compound / CamelCase lookup (e.g. ScreenTranslator -> Screen + Translator)
             val subParts = splitCompoundWord(trimmed)
             if (subParts.size > 1) {
                 val subTranslations = subParts.map { part ->
