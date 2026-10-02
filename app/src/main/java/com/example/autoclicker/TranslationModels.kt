@@ -237,7 +237,14 @@ object LanguageDetectorOffline {
         }
 
         return when (targetLang) {
-            "ru" -> latinCount >= 2 || GERMAN_UMLAUTS.containsMatchIn(clean)
+            "ru" -> {
+                // If text is predominantly Russian (> 75% Cyrillic), do not flag as translatable into Russian
+                if (cyrillicCount > 0 && cyrillicCount >= latinCount * 3) {
+                    false
+                } else {
+                    latinCount >= 2 || GERMAN_UMLAUTS.containsMatchIn(clean)
+                }
+            }
             "en" -> cyrillicCount >= 2 || GERMAN_UMLAUTS.containsMatchIn(clean)
             "de" -> cyrillicCount >= 2 || latinCount >= 2
             else -> true
@@ -264,18 +271,18 @@ object LanguageDetectorOffline {
             }
         }
 
-        // Check for MIXED text (both Cyrillic and Latin present)
-        val rawWords = sanitized.split(Regex("[^\\p{L}]+")).filter { it.length >= 2 }
-        val hasCyrillicWords = rawWords.any { w -> w.any { it.code in 0x0400..0x04FF } }
-        val hasLatinWords = rawWords.any { w -> w.any { (it in 'a'..'z') || (it in 'A'..'Z') || (it in "äöüßÄÖÜ") } }
-
-        if (hasCyrillicWords && hasLatinWords) {
-            return "mix"
-        }
-
         // Pure Cyrillic
         if (cyrillicCount >= 2 && latinCount == 0) {
             return "ru"
+        }
+
+        // Check for MIXED text (both Cyrillic and Latin present in meaningful word counts)
+        val rawWords = sanitized.split(Regex("[^\\p{L}]+")).filter { it.length >= 2 }
+        val cyrillicWords = rawWords.filter { w -> w.any { it.code in 0x0400..0x04FF } }
+        val latinWords = rawWords.filter { w -> w.any { (it in 'a'..'z') || (it in 'A'..'Z') || (it in "äöüßÄÖÜ") } }
+
+        if (cyrillicWords.size >= 2 && latinWords.size >= 2) {
+            return "mix"
         }
 
         // German Umlauts / Eszett in pure Latin

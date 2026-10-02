@@ -272,14 +272,14 @@ object OfflineTranslationEngine {
             }
         }
 
-        // If it's a full multi-word sentence (> 3 words) and not matched in full phrases:
-        // Do NOT replace individual prepositions into word-salad! Return workingText.
-        val wordList = workingText.split(Regex("\\s+")).filter { it.length > 1 }
-        if (wordList.size > 3) {
-            return workingText.replaceFirstChar { it.uppercaseChar() }
+        // German Genitive / Preposition phrases like "Akademie der Lügen"
+        if (targetLang == "ru") {
+            workingText = workingText.replace(Regex("(?i)\\bder\\s+lügen\\b"), "лжи")
+            workingText = workingText.replace(Regex("(?i)\\bdes\\s+lebens\\b"), "жизни")
+            workingText = workingText.replace(Regex("(?i)\\bder\\s+welt\\b"), "мира")
         }
 
-        // 3. UI Token & CamelCase translation for 1-3 word titles / buttons / labels
+        // 3. Comprehensive Dictionary & Lemmatizer translation for words and sentences
         val tokens = workingText.split(Regex("(?<=[\\s.,!?:;—–()\"'/])|(?=[\\s.,!?:;—–()\"'/])"))
         val sb = StringBuilder()
 
@@ -290,9 +290,29 @@ object OfflineTranslationEngine {
                 continue
             }
 
+            // If token is already Cyrillic, keep it
+            val hasLatin = trimmed.any { (it in 'a'..'z') || (it in 'A'..'Z') || (it in "äöüßÄÖÜ") }
+            if (targetLang == "ru" && !hasLatin) {
+                sb.append(token)
+                continue
+            }
+
             val lower = trimmed.lowercase()
 
-            // Direct dictionary lookup
+            // 1. Comprehensive Dictionary lookup (English & German with stemming)
+            val compMatch = if (srcLang == "de") {
+                ComprehensiveDictionary.lookupGerman(lower) ?: ComprehensiveDictionary.lookupEnglish(lower)
+            } else {
+                ComprehensiveDictionary.lookupEnglish(lower) ?: ComprehensiveDictionary.lookupGerman(lower)
+            }
+
+            if (compMatch != null) {
+                val formatted = if (trimmed[0].isUpperCase()) compMatch.replaceFirstChar { it.uppercaseChar() } else compMatch
+                sb.append(formatted)
+                continue
+            }
+
+            // 2. Direct dictionary lookup
             val directMatch = DICTIONARY[lower]?.get(targetLang)
             if (directMatch != null) {
                 val formatted = if (trimmed[0].isUpperCase()) directMatch.replaceFirstChar { it.uppercaseChar() } else directMatch
@@ -300,13 +320,15 @@ object OfflineTranslationEngine {
                 continue
             }
 
-            // Compound / CamelCase lookup (e.g. ScreenTranslator -> Screen + Translator)
+            // 3. Compound / CamelCase lookup (e.g. ScreenTranslator, Skullgirls)
             val subParts = splitCompoundWord(trimmed)
             if (subParts.size > 1) {
                 val subTranslations = subParts.map { part ->
-                    val partMatch = DICTIONARY[part.lowercase()]?.get(targetLang)
-                    if (partMatch != null) {
-                        if (part[0].isUpperCase()) partMatch.replaceFirstChar { it.uppercaseChar() } else partMatch
+                    val pMatch = ComprehensiveDictionary.lookupEnglish(part.lowercase())
+                        ?: ComprehensiveDictionary.lookupGerman(part.lowercase())
+                        ?: DICTIONARY[part.lowercase()]?.get(targetLang)
+                    if (pMatch != null) {
+                        if (part[0].isUpperCase()) pMatch.replaceFirstChar { it.uppercaseChar() } else pMatch
                     } else {
                         part
                     }
