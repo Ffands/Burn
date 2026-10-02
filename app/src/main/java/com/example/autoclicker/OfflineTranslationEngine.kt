@@ -5,6 +5,11 @@ object OfflineTranslationEngine {
     private data class Phrase(val ru: String, val en: String, val de: String)
 
     private val PHRASES = listOf(
+        Phrase("экранный переводчик", "screen translator", "bildschirm übersetzer"),
+        Phrase("экранный переводчик", "screentranslator", "bildschirmübersetzer"),
+        Phrase("трансляция экрана", "screen cast", "bildschirmübertragung"),
+        Phrase("трансляция экрана", "screencast", "bildschirmübertragung"),
+        Phrase("скачанные приложения", "downloaded apps", "heruntergeladene apps"),
         Phrase("чтобы быть образованным нужно много учиться", "to be educated you need to study a lot", "um gebildet zu sein muss man viel lernen"),
         Phrase("привет как дела", "hello how are you", "hallo wie geht es dir"),
         Phrase("все отлично спасибо", "everything is great thank you", "alles ist super danke"),
@@ -43,6 +48,38 @@ object OfflineTranslationEngine {
     )
 
     private val DICTIONARY = mapOf(
+        // Tech & UI Android Apps & Files
+        "screen" to mapOf("ru" to "экран", "de" to "bildschirm"),
+        "translator" to mapOf("ru" to "переводчик", "de" to "übersetzer"),
+        "screentranslator" to mapOf("ru" to "экранный переводчик", "de" to "bildschirmübersetzer"),
+        "cast" to mapOf("ru" to "трансляция", "de" to "übertragung"),
+        "screencast" to mapOf("ru" to "трансляция экрана", "de" to "bildschirmübertragung"),
+        "click" to mapOf("ru" to "клик", "de" to "klick"),
+        "upwell" to mapOf("ru" to "апвелл", "de" to "upwell"),
+        "upwellclick" to mapOf("ru" to "автокликер Upwell", "de" to "upwell-klicker"),
+        "cloner" to mapOf("ru" to "клонер", "de" to "kloner"),
+        "app" to mapOf("ru" to "приложение", "de" to "app"),
+        "apps" to mapOf("ru" to "приложения", "de" to "apps"),
+        "download" to mapOf("ru" to "загрузки", "de" to "downloads"),
+        "downloads" to mapOf("ru" to "загрузки", "de" to "downloads"),
+        "pictures" to mapOf("ru" to "изображения", "de" to "bilder"),
+        "picture" to mapOf("ru" to "изображение", "de" to "bild"),
+        "movies" to mapOf("ru" to "видео", "de" to "filme"),
+        "movie" to mapOf("ru" to "видео", "de" to "film"),
+        "alarms" to mapOf("ru" to "будильники", "de" to "wecker"),
+        "alarm" to mapOf("ru" to "будильник", "de" to "wecker"),
+        "documents" to mapOf("ru" to "документы", "de" to "dokumente"),
+        "document" to mapOf("ru" to "документ", "de" to "dokument"),
+        "recycler" to mapOf("ru" to "корзина", "de" to "papierkorb"),
+        "manager" to mapOf("ru" to "диспетчер", "de" to "manager"),
+        "file" to mapOf("ru" to "файл", "de" to "datei"),
+        "files" to mapOf("ru" to "файлы", "de" to "dateien"),
+        "installed" to mapOf("ru" to "установленные", "de" to "installiert"),
+        "service" to mapOf("ru" to "служба", "de" to "dienst"),
+        "accessibility" to mapOf("ru" to "специальные возможности", "de" to "barrierefreiheit"),
+        "connection" to mapOf("ru" to "подключение", "de" to "verbindung"),
+        "windows" to mapOf("ru" to "windows", "de" to "windows"),
+
         // Educational & Common
         "educated" to mapOf("ru" to "образованный", "de" to "gebildet"),
         "study" to mapOf("ru" to "учиться", "de" to "lernen"),
@@ -57,14 +94,13 @@ object OfflineTranslationEngine {
         "много" to mapOf("en" to "a lot", "de" to "viel"),
         "нужно" to mapOf("en" to "need", "de" to "muss"),
 
-        // UI & Tech
+        // UI & System
         "текст" to mapOf("en" to "text", "de" to "text"),
         "экран" to mapOf("en" to "screen", "de" to "bildschirm"),
         "язык" to mapOf("en" to "language", "de" to "sprache"),
         "настройки" to mapOf("en" to "settings", "de" to "einstellungen"),
         "перевод" to mapOf("en" to "translation", "de" to "übersetzung"),
         "кнопка" to mapOf("en" to "button", "de" to "schaltfläche"),
-        "документ" to mapOf("en" to "document", "de" to "dokument"),
         "таблица" to mapOf("en" to "table", "de" to "tabelle"),
         "статья" to mapOf("en" to "article", "de" to "artikel"),
         "данные" to mapOf("en" to "data", "de" to "daten"),
@@ -77,12 +113,10 @@ object OfflineTranslationEngine {
         "точный" to mapOf("en" to "accurate", "de" to "genau"),
 
         "text" to mapOf("ru" to "текст", "de" to "text"),
-        "screen" to mapOf("ru" to "экран", "de" to "bildschirm"),
         "language" to mapOf("ru" to "язык", "de" to "sprache"),
         "settings" to mapOf("ru" to "настройки", "de" to "einstellungen"),
         "translation" to mapOf("ru" to "перевод", "de" to "übersetzung"),
         "button" to mapOf("ru" to "кнопка", "de" to "schaltfläche"),
-        "document" to mapOf("ru" to "документ", "de" to "dokument"),
         "table" to mapOf("ru" to "таблица", "de" to "tabelle"),
         "article" to mapOf("ru" to "статья", "de" to "artikel"),
         "autonomous" to mapOf("ru" to "автономный", "de" to "autonom"),
@@ -118,13 +152,13 @@ object OfflineTranslationEngine {
             else if ((code in 65..90) || (code in 97..122)) latinCount++
         }
 
+        // If predominantly Latin, replace OCR Cyrillic misreads with Latin equivalents
         if (latinCount > cyrillicCount && latinCount > 0) {
-            // Predominantly Latin sentence, convert OCR stray Cyrillic confusion to Latin
             return str
                 .replace('п', 'n')
                 .replace('П', 'N')
-                .replace('т', 'm')
-                .replace('Т', 'M')
+                .replace('т', 't')
+                .replace('Т', 'T')
                 .replace('р', 'p')
                 .replace('Р', 'P')
                 .replace('с', 'c')
@@ -142,7 +176,6 @@ object OfflineTranslationEngine {
                 .replace('і', 'i')
                 .replace('І', 'I')
         } else if (cyrillicCount > latinCount && cyrillicCount > 0) {
-            // Predominantly Cyrillic sentence, convert OCR stray Latin confusion to Cyrillic
             return str
                 .replace('p', 'р')
                 .replace('P', 'Р')
@@ -170,12 +203,40 @@ object OfflineTranslationEngine {
             .trim()
     }
 
+    /**
+     * Splits CamelCase or compound words (e.g. "ScreenTranslator" -> ["Screen", "Translator"])
+     */
+    fun splitCompoundWord(word: String): List<String> {
+        val clean = word.trim()
+        if (clean.length < 4) return listOf(clean)
+
+        // 1. CamelCase split
+        val camelParts = clean.split(Regex("(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])"))
+        if (camelParts.size > 1) {
+            return camelParts.filter { it.isNotBlank() }
+        }
+
+        // 2. Sub-root split for lowercase compounds (e.g. "screentranslator" -> ["screen", "translator"])
+        val lower = clean.lowercase()
+        for ((key, _) in DICTIONARY) {
+            if (key.length >= 3 && lower.startsWith(key) && lower.length > key.length) {
+                val remainder = lower.substring(key.length)
+                if (DICTIONARY.containsKey(remainder) || remainder.length >= 3) {
+                    return listOf(key, remainder)
+                }
+            }
+        }
+
+        return listOf(clean)
+    }
+
     fun translate(text: String, srcLang: String, targetLang: String): String {
         if (text.isBlank() || srcLang == targetLang) return text
 
-        val normalizedInput = normalizeForMatch(text)
+        val sanitizedText = sanitizeOcrHomoglyphs(text)
+        val normalizedInput = normalizeForMatch(sanitizedText)
 
-        // 1. Exact phrase match (ignoring punctuation)
+        // 1. Exact phrase match
         for (p in PHRASES) {
             val srcPhraseNorm = when (srcLang) {
                 "en" -> normalizeForMatch(p.en)
@@ -209,8 +270,8 @@ object OfflineTranslationEngine {
             }
         }
 
-        // 3. Tokenized word-by-word match with punctuation preservation (supports mixed language)
-        val tokens = text.split(Regex("(?<=[\\s.,!?:;—–()\"'])|(?=[\\s.,!?:;—–()\"'])"))
+        // 3. Tokenized word-by-word with CamelCase / compound splitting
+        val tokens = sanitizedText.split(Regex("(?<=[\\s.,!?:;—–()\"'/])|(?=[\\s.,!?:;—–()\"'/])"))
         val sb = StringBuilder()
 
         for (token in tokens) {
@@ -221,16 +282,28 @@ object OfflineTranslationEngine {
             }
 
             val lower = trimmed.lowercase()
-            val match = DICTIONARY[lower]?.get(targetLang)
-            if (match != null) {
-                val formatted = if (trimmed.isNotEmpty() && trimmed[0].isUpperCase()) {
-                    match.replaceFirstChar { it.uppercaseChar() }
-                } else {
-                    match
-                }
+
+            // Direct dictionary lookup
+            val directMatch = DICTIONARY[lower]?.get(targetLang)
+            if (directMatch != null) {
+                val formatted = if (trimmed[0].isUpperCase()) directMatch.replaceFirstChar { it.uppercaseChar() } else directMatch
                 sb.append(formatted)
+                continue
+            }
+
+            // Compound / CamelCase lookup (e.g. ScreenTranslator, ScreenCast)
+            val subParts = splitCompoundWord(trimmed)
+            if (subParts.size > 1) {
+                val subTranslations = subParts.map { part ->
+                    val partMatch = DICTIONARY[part.lowercase()]?.get(targetLang)
+                    if (partMatch != null) {
+                        if (part[0].isUpperCase()) partMatch.replaceFirstChar { it.uppercaseChar() } else partMatch
+                    } else {
+                        part
+                    }
+                }
+                sb.append(subTranslations.joinToString(" "))
             } else {
-                // Keep original word if no translation or already in target language
                 sb.append(token)
             }
         }

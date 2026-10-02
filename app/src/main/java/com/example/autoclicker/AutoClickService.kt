@@ -129,8 +129,8 @@ class AutoClickService : AccessibilityService() {
                                     val lineText = line.stringValue
                                     if (lineText.isNullOrBlank()) continue
                                     
-                                    // Clean text directly without corrupting Latin chars!
-                                    val cleanText = lineText.trim()
+                                    // Clean and sanitize OCR homoglyphs immediately on input
+                                    val cleanText = OfflineTranslationEngine.sanitizeOcrHomoglyphs(lineText.trim())
 
                                     // Filter out noise (single letter headers like 'D', symbols, icons)
                                     if (LanguageDetectorOffline.isIgnorableNoise(cleanText)) {
