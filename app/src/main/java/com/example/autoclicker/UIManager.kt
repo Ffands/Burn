@@ -283,7 +283,7 @@ class UIManager(private val service: AutoClickService) {
 
         // Asynchronously enhance translation with Huawei On-Device Neural Translator
         HuaweiTranslationManager.translate(block.originalText, block.detectedLang, block.targetLang) { neuralText ->
-            service.mainHandler.post {
+            transText.post {
                 if (!neuralText.isNullOrBlank() && neuralText != block.originalText) {
                     transText.text = neuralText
                 }

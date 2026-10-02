@@ -24,6 +24,7 @@ class AutoClickService : AccessibilityService() {
 
     lateinit var uiManager: UIManager
     val handler = Handler(Looper.getMainLooper())
+    val mainHandler: Handler get() = handler
 
     companion object {
         var instance: AutoClickService? = null
