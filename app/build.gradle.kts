@@ -3,35 +3,24 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-tasks.register<Exec>("generateKeystore") {
-    commandLine("true")
-}
-
 android {
     namespace = "com.example.autoclicker"
     compileSdk = 34
-
-    signingConfigs {
-        create("release") {
-            storeFile = file("release.jks")
-            storePassword = "upwellclick"
-            keyAlias = "upwell-key"
-            keyPassword = "upwellclick"
-        }
-    }
 
     defaultConfig {
         applicationId = "com.aistudio.applet.pjgekm"
         minSdk = 30
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.0.1"
+        versionCode = 7
+        versionName = "1.1.0"
     }
 
     buildTypes {
+        debug {
+            isMinifyEnabled = false
+        }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
         }
     }
 
