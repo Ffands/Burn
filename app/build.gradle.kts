@@ -35,7 +35,6 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
-    implementation("com.huawei.hms:ml-computer-vision-ocr:3.11.0.301")
-    implementation("com.huawei.hms:ml-computer-vision-ocr-latin-model:3.11.0.301")
-    implementation("com.huawei.hms:ml-computer-vision-text:3.11.0.301")
+    implementation("com.huawei.hms:ml-computer-vision-ocr:3.18.1.302")
+    implementation("com.huawei.hms:ml-computer-vision-ocr-latin-model:3.18.1.302")
 }
