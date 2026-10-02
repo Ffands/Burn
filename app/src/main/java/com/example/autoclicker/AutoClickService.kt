@@ -112,7 +112,7 @@ class AutoClickService : AccessibilityService() {
                 val scaleX = screenW.toFloat() / bitmap.width
                 val scaleY = screenH.toFloat() / bitmap.height
 
-                // Native 1:1 frame input to avoid 1.5x displacement or distortion!
+                // Native 1:1 frame input to avoid displacement or distortion
                 val analyzer = getHuaweiAnalyzer("ru")
                 val frame = MLFrame.fromBitmap(bitmap)
 
@@ -129,10 +129,11 @@ class AutoClickService : AccessibilityService() {
                                     val lineText = line.stringValue
                                     if (lineText.isNullOrBlank()) continue
                                     
-                                    val normText = normalizeCyrillic(lineText)
+                                    // Clean text directly without corrupting Latin chars!
+                                    val cleanText = lineText.trim()
 
-                                    // FIX 4: Discard single-character noise (e.g. column headers 'D', single digits, icons)
-                                    if (LanguageDetectorOffline.isIgnorableNoise(normText)) {
+                                    // Filter out noise (single letter headers like 'D', symbols, icons)
+                                    if (LanguageDetectorOffline.isIgnorableNoise(cleanText)) {
                                         continue
                                     }
 
@@ -148,7 +149,7 @@ class AutoClickService : AccessibilityService() {
                                     rawItems.add(
                                         RawOcrItem(
                                             id = "line_${itemCounter++}",
-                                            text = normText,
+                                            text = cleanText,
                                             rect = mappedRect
                                         )
                                     )
@@ -156,13 +157,13 @@ class AutoClickService : AccessibilityService() {
                             }
                         }
 
-                        // FIX 3: Geometric clustering with language isolation (does not glue different languages or rows)
+                        // Geometric clustering with language isolation (does not glue different languages or rows)
                         val clustered = GeometryHelper.clusterBlocksGeometrically(rawItems, 0.65f)
 
                         // Process translations & nearest corners
                         val translationBlocks = clustered.mapIndexed { index, item ->
                             val detected = LanguageDetectorOffline.detect(item.text)
-                            // FIX 3: Check if text contains any translatable content into target language (supports mixed language)
+                            // Check if text contains any translatable content into target language
                             val hasTranslatable = LanguageDetectorOffline.hasTranslatableContent(item.text, targetLanguage)
                             val isSkipped = !hasTranslatable
 
@@ -221,36 +222,6 @@ class AutoClickService : AccessibilityService() {
             mlTextAnalyzer = MLAnalyzerFactory.getInstance().getLocalTextAnalyzer(setting)
             return mlTextAnalyzer!!
         }
-    }
-
-    fun normalizeCyrillic(str: String): String {
-        var s = str.lowercase().replace(Regex("\\s+"), " ").trim()
-
-        s = s.replace("llo", "лю")
-            .replace("io", "ю")
-            .replace("lo", "ю")
-            .replace("10", "ю")
-            .replace("wa", "ща")
-            .replace("sh", "ш")
-            .replace("ch", "ч")
-            .replace("ya", "я")
-            .replace("ji", "л")
-            .replace("tl", "п")
-            .replace("lļ,", "ц")
-            .replace("lļ", "ц")
-            .replace("ll,", "ц")
-            .replace("li,", "ц")
-            .replace("n,", "и,")
-
-        s = s.replace("6", "б")
-            .replace("0", "о")
-            .replace("3", "з")
-            .replace("4", "ч")
-            .replace("9", " э")
-            .replace("b", "ь")
-            .replace("ñ", "й")
-
-        return s.replace(Regex("\\s+"), " ").trim()
     }
 
     override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {}
