@@ -25,7 +25,7 @@ data class TranslationBlock(
     val id: String,
     val originalText: String,
     val translatedText: String,
-    val detectedLang: String, // "ru", "en", "de", "und"
+    val detectedLang: String, // "ru", "en", "de", "mix", "und"
     val targetLang: String,   // "ru", "en", "de"
     val rect: Rect,
     val nearestCorner: CornerInfo,
@@ -100,8 +100,8 @@ object GeometryHelper {
             for (cluster in clusters) {
                 val clusterFirstLang = LanguageDetectorOffline.detect(cluster[0].text)
                 
-                // Never merge lines of different languages
-                if (itemLang != "und" && clusterFirstLang != "und" && itemLang != clusterFirstLang) {
+                // Never merge lines of different pure languages (e.g. Russian and English table cells)
+                if (itemLang != "und" && clusterFirstLang != "und" && itemLang != "mix" && clusterFirstLang != "mix" && itemLang != clusterFirstLang) {
                     continue
                 }
 
@@ -157,25 +157,28 @@ object LanguageDetectorOffline {
     // 1. Уникальные маркерные буквы / символы
     private val GERMAN_UMLAUTS = Regex("[äöüßÄÖÜ]")
 
-    // 2. Служебные слова / артикли / предлоги
-    private val GERMAN_ARTICLES_AND_STOPS = setOf(
+    // 2. Уникальные служебные слова (СТРОГО НЕ ПЕРЕСЕКАЮЩИЕСЯ)
+    private val GERMAN_UNIQUE_STOPS = setOf(
         "der", "die", "das", "dem", "den", "des",
         "ein", "eine", "einer", "einem", "einen", "eines",
         "nicht", "und", "oder", "aber", "wenn", "dass",
-        "ist", "sind", "war", "waren", "wird", "werden",
-        "mit", "auf", "nach", "zu", "im", "in", "von", "für",
-        "als", "auch", "es", "an", "er", "hat", "haben",
-        "muss", "man", "viel", "wir", "ihr", "sie", "sein"
+        "sind", "war", "waren", "wird", "werden",
+        "mit", "auf", "nach", "zu", "im", "von", "für",
+        "auch", "er", "sie", "ihr", "wir", "muss", "man", "viel",
+        "lernen", "sein", "haben", "hat", "bock", "quasi", "geil", "toll"
     )
 
-    private val ENGLISH_ARTICLES_AND_STOPS = setOf(
-        "the", "a", "an", "this", "that", "these", "those",
-        "is", "are", "was", "were", "be", "been", "being",
-        "have", "has", "had", "do", "does", "did",
-        "with", "from", "for", "at", "by", "to", "in", "on", "of",
+    private val ENGLISH_UNIQUE_STOPS = setOf(
+        "the", "to", "you", "that", "these", "those",
+        "with", "from", "for", "at", "by", "this",
         "which", "what", "where", "when", "who", "how",
         "will", "would", "should", "could", "can",
-        "not", "and", "or", "but", "you", "your", "they", "their", "we", "our"
+        "not", "all", "were", "your", "their", "they", "them",
+        "have", "has", "had", "do", "does", "did",
+        "be", "been", "being", "need", "study", "lot",
+        "about", "more", "some", "out", "up", "into", "other",
+        "screen", "translator", "cast", "click", "app", "apps",
+        "download", "pictures", "movies", "alarms", "documents"
     )
 
     // 3. Словарные корни
@@ -185,7 +188,8 @@ object LanguageDetectorOffline {
         "summe", "status", "autonom", "betrieb", "spezifikationen", "bezeichnung",
         "menge", "einzelpreis", "gesamtbetrag", "bestellstatus", "bezahlt",
         "bearbeitung", "zugestellt", "abbrechen", "bestätigen", "richtlinie",
-        "bedingungen", "rechte", "bilder", "hochladen", "inhalt", "bildschirm"
+        "bedingungen", "rechte", "bilder", "hochladen", "inhalt", "bildschirm",
+        "quasi", "jepp", "jau", "toll", "geil", "bock", "klamotten", "fernweh"
     )
 
     private val ENGLISH_ROOTS = setOf(
@@ -200,9 +204,6 @@ object LanguageDetectorOffline {
         "prohibited", "privacy", "agreement", "service", "accessibility"
     )
 
-    /**
-     * Filters out single characters like 'D', 'A', '1', and non-letter noise.
-     */
     fun isIgnorableNoise(text: String): Boolean {
         val sanitized = OfflineTranslationEngine.sanitizeOcrHomoglyphs(text)
         val clean = sanitized.trim()
@@ -244,77 +245,61 @@ object LanguageDetectorOffline {
     }
 
     /**
-     * 4-ступенчатая система проверки языка:
-     * 1. Странные / уникальные буквы (Fast-Path):
-     *    - Кириллица (cyrillic >= latin) -> "ru"
-     *    - Умлауты / эсцет (ä, ö, ü, ß) -> "de"
-     * 2. Артикли и служебные слова:
-     *    - der, die, das, ein, ist, sind, mit -> "de"
-     *    - the, a, an, this, is, are, with -> "en"
-     * 3. Буквосочетания (N-grams):
-     *    - sch, ei, ie, tz, pf, ung -> "de"
-     *    - th, sh, wh, ee, oo, ea, qu, ing -> "en"
-     * 4. Словарь + слитные слова (CamelCase / Compound split):
-     *    - ScreenTranslator -> screen + translator -> "en"
-     *    - Поиск корней по словарю
-     *    - Если латиница -> "en" (НИКОГДА не возвращать "ru" для латиницы!)
+     * Accurate language detection with MIXED language support.
+     * Returns "ru", "en", "de", or "mix".
      */
     fun detect(text: String): String {
         if (text.isBlank()) return "und"
 
         val sanitized = OfflineTranslationEngine.sanitizeOcrHomoglyphs(text)
 
-        // ==========================================
-        // 1. СТРАННЫЕ / УНИКАЛЬНЫЕ БУКВЫ
-        // ==========================================
         var cyrillicCount = 0
         var latinCount = 0
         for (ch in sanitized) {
             val code = ch.code
             if (code in 0x0400..0x04FF) {
                 cyrillicCount++
-            } else if ((code in 65..90) || (code in 97..122)) {
+            } else if ((code in 65..90) || (code in 97..122) || (ch in "äöüßÄÖÜ")) {
                 latinCount++
             }
         }
 
-        // Чистая кириллица
-        if (cyrillicCount >= latinCount && cyrillicCount >= 2) {
+        // Check for MIXED text (both Cyrillic and Latin present)
+        val rawWords = sanitized.split(Regex("[^\\p{L}]+")).filter { it.length >= 2 }
+        val hasCyrillicWords = rawWords.any { w -> w.any { it.code in 0x0400..0x04FF } }
+        val hasLatinWords = rawWords.any { w -> w.any { (it in 'a'..'z') || (it in 'A'..'Z') || (it in "äöüßÄÖÜ") } }
+
+        if (hasCyrillicWords && hasLatinWords) {
+            return "mix"
+        }
+
+        // Pure Cyrillic
+        if (cyrillicCount >= 2 && latinCount == 0) {
             return "ru"
         }
 
-        // Немецкие умлауты или эсцет
+        // German Umlauts / Eszett in pure Latin
         if (GERMAN_UMLAUTS.containsMatchIn(sanitized)) {
             return "de"
         }
 
-        val lowerText = sanitized.lowercase()
-        val rawWords = sanitized.split(Regex("[^\\p{L}]+")).filter { it.length > 1 }
         if (rawWords.isEmpty()) {
             return if (cyrillicCount > latinCount) "ru" else if (latinCount > 0) "en" else "und"
         }
 
-        // ==========================================
-        // 2. АРТИКЛИ И СЛУЖЕБНЫЕ СЛОВА
-        // ==========================================
-        var deArticles = 0
-        var enArticles = 0
+        // Unique Stop-words & High-frequency tokens
+        var deScore = 0
+        var enScore = 0
         for (w in rawWords) {
             val lw = w.lowercase()
-            if (GERMAN_ARTICLES_AND_STOPS.contains(lw)) deArticles++
-            if (ENGLISH_ARTICLES_AND_STOPS.contains(lw)) enArticles++
+            if (GERMAN_UNIQUE_STOPS.contains(lw)) deScore += 3
+            if (ENGLISH_UNIQUE_STOPS.contains(lw)) enScore += 3
         }
 
-        if (deArticles > enArticles && deArticles > 0) return "de"
-        if (enArticles > deArticles && enArticles > 0) return "en"
+        if (deScore > enScore && deScore > 0) return "de"
+        if (enScore > deScore && enScore > 0) return "en"
 
-        // ==========================================
-        // 3. СЛОВАРЬ + СЛИТНЫЕ / СОСТАВНЫЕ СЛОВА
-        // ==========================================
-        var deDictHits = 0
-        var enDictHits = 0
-
-        // Разбиваем слитные слова (например, ScreenTranslator -> Screen + Translator)
+        // Dictionary & Compound Roots
         val expandedTokens = mutableListOf<String>()
         for (word in rawWords) {
             expandedTokens.addAll(OfflineTranslationEngine.splitCompoundWord(word))
@@ -322,14 +307,14 @@ object LanguageDetectorOffline {
 
         for (token in expandedTokens) {
             val lt = token.lowercase()
-            if (GERMAN_ROOTS.contains(lt)) deDictHits++
-            if (ENGLISH_ROOTS.contains(lt)) enDictHits++
+            if (GERMAN_ROOTS.contains(lt)) deScore += 2
+            if (ENGLISH_ROOTS.contains(lt)) enScore += 2
         }
 
-        if (deDictHits > enDictHits) return "de"
-        if (enDictHits > deDictHits) return "en"
+        if (deScore > enScore && deScore > 0) return "de"
+        if (enScore > deScore && enScore > 0) return "en"
 
-        // Латиница по умолчанию всегда EN
+        // Default: If Latin exists, it's English. If Cyrillic exists, it's Russian.
         return if (latinCount >= 2) "en" else if (cyrillicCount >= 2) "ru" else "en"
     }
 }

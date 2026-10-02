@@ -11,6 +11,12 @@ object OfflineTranslationEngine {
         Phrase("трансляция экрана", "screencast", "bildschirmübertragung"),
         Phrase("скачанные приложения", "downloaded apps", "heruntergeladene apps"),
         Phrase("чтобы быть образованным нужно много учиться", "to be educated you need to study a lot", "um gebildet zu sein muss man viel lernen"),
+        Phrase("мне в кайф", "i'm feeling it", "ich habe bock"),
+        Phrase("нет настроения", "not in the mood", "kein bock"),
+        Phrase("привет привет", "hello hello", "moin moin"),
+        Phrase("привет", "hello", "moin"),
+        Phrase("тоска по дальним странам", "wanderlust", "fernweh"),
+        Phrase("кавардак", "mess", "kuddelmuddel"),
         Phrase("привет как дела", "hello how are you", "hallo wie geht es dir"),
         Phrase("все отлично спасибо", "everything is great thank you", "alles ist super danke"),
         Phrase("где ты сейчас", "where are you now", "wo bist du jetzt"),
@@ -48,6 +54,24 @@ object OfflineTranslationEngine {
     )
 
     private val DICTIONARY = mapOf(
+        // German Slang & Colloquial
+        "quasi" to mapOf("ru" to "квази (типа)", "en" to "quasi"),
+        "jepp" to mapOf("ru" to "ага (да)", "en" to "yep"),
+        "jau" to mapOf("ru" to "угу (да)", "en" to "yeah"),
+        "toll" to mapOf("ru" to "круто", "en" to "great"),
+        "geil" to mapOf("ru" to "классно", "en" to "cool"),
+        "bock" to mapOf("ru" to "охота / кайф", "en" to "desire"),
+        "klamotten" to mapOf("ru" to "шмотки (одежда)", "en" to "clothes"),
+        "moin" to mapOf("ru" to "привет", "en" to "hi"),
+        "fernweh" to mapOf("ru" to "тяга к путешествиям", "en" to "wanderlust"),
+        "kuddelmuddel" to mapOf("ru" to "кавардак", "en" to "mess"),
+        "haben" to mapOf("ru" to "иметь", "en" to "have"),
+        "sein" to mapOf("ru" to "быть", "en" to "be"),
+        "nicht" to mapOf("ru" to "не", "en" to "not"),
+        "und" to mapOf("ru" to "и", "en" to "and"),
+        "oder" to mapOf("ru" to "или", "en" to "or"),
+        "aber" to mapOf("ru" to "но", "en" to "but"),
+
         // Tech & UI Android Apps & Files
         "screen" to mapOf("ru" to "экран", "de" to "bildschirm"),
         "translator" to mapOf("ru" to "переводчик", "de" to "übersetzer"),
@@ -80,7 +104,7 @@ object OfflineTranslationEngine {
         "connection" to mapOf("ru" to "подключение", "de" to "verbindung"),
         "windows" to mapOf("ru" to "windows", "de" to "windows"),
 
-        // Educational & Common
+        // Educational & Common English / German
         "educated" to mapOf("ru" to "образованный", "de" to "gebildet"),
         "study" to mapOf("ru" to "учиться", "de" to "lernen"),
         "lot" to mapOf("ru" to "много", "de" to "viel"),
@@ -89,58 +113,35 @@ object OfflineTranslationEngine {
         "lernen" to mapOf("ru" to "учиться", "en" to "study"),
         "viel" to mapOf("ru" to "много", "en" to "lot"),
         "muss" to mapOf("ru" to "нужно", "en" to "must"),
+        "man" to mapOf("ru" to "нужно / человек", "en" to "one"),
+        "zu" to mapOf("ru" to "чтобы / к", "en" to "to"),
+        "um" to mapOf("ru" to "для / вокруг", "en" to "around"),
+        "to" to mapOf("ru" to "чтобы / к", "de" to "zu"),
+        "be" to mapOf("ru" to "быть", "de" to "sein"),
+        "you" to mapOf("ru" to "вам / ты", "de" to "du / sie"),
         "образованный" to mapOf("en" to "educated", "de" to "gebildet"),
         "учиться" to mapOf("en" to "study", "de" to "lernen"),
         "много" to mapOf("en" to "a lot", "de" to "viel"),
         "нужно" to mapOf("en" to "need", "de" to "muss"),
 
         // UI & System
-        "текст" to mapOf("en" to "text", "de" to "text"),
-        "экран" to mapOf("en" to "screen", "de" to "bildschirm"),
-        "язык" to mapOf("en" to "language", "de" to "sprache"),
-        "настройки" to mapOf("en" to "settings", "de" to "einstellungen"),
-        "перевод" to mapOf("en" to "translation", "de" to "übersetzung"),
-        "кнопка" to mapOf("en" to "button", "de" to "schaltfläche"),
-        "таблица" to mapOf("en" to "table", "de" to "tabelle"),
-        "статья" to mapOf("en" to "article", "de" to "artikel"),
-        "данные" to mapOf("en" to "data", "de" to "daten"),
-        "сообщение" to mapOf("en" to "message", "de" to "nachricht"),
-        "время" to mapOf("en" to "time", "de" to "zeit"),
-        "сумма" to mapOf("en" to "sum", "de" to "summe"),
-        "статус" to mapOf("en" to "status", "de" to "status"),
-        "офлайн" to mapOf("en" to "offline", "de" to "offline"),
-        "быстрый" to mapOf("en" to "fast", "de" to "schnell"),
-        "точный" to mapOf("en" to "accurate", "de" to "genau"),
-
         "text" to mapOf("ru" to "текст", "de" to "text"),
-        "language" to mapOf("ru" to "язык", "de" to "sprache"),
         "settings" to mapOf("ru" to "настройки", "de" to "einstellungen"),
         "translation" to mapOf("ru" to "перевод", "de" to "übersetzung"),
         "button" to mapOf("ru" to "кнопка", "de" to "schaltfläche"),
         "table" to mapOf("ru" to "таблица", "de" to "tabelle"),
         "article" to mapOf("ru" to "статья", "de" to "artikel"),
-        "autonomous" to mapOf("ru" to "автономный", "de" to "autonom"),
-        "system" to mapOf("ru" to "система", "de" to "system"),
-        "operation" to mapOf("ru" to "работа", "de" to "betrieb"),
-        "device" to mapOf("ru" to "устройство", "de" to "gerät"),
-        "specifications" to mapOf("ru" to "характеристики", "de" to "spezifikationen"),
-        "bundled" to mapOf("ru" to "встроенный", "de" to "integriert"),
-        "pack" to mapOf("ru" to "пакет", "de" to "paket"),
-        "recognition" to mapOf("ru" to "распознавание", "de" to "erkennung"),
-        "mode" to mapOf("ru" to "режим", "de" to "modus"),
+        "data" to mapOf("ru" to "данные", "de" to "daten"),
+        "message" to mapOf("ru" to "сообщение", "de" to "nachricht"),
+        "time" to mapOf("ru" to "время", "de" to "zeit"),
+        "sum" to mapOf("ru" to "сумма", "de" to "summe"),
+        "status" to mapOf("ru" to "статус", "de" to "status"),
         "offline" to mapOf("ru" to "офлайн", "de" to "offline"),
-        "generating" to mapOf("ru" to "генерация", "de" to "generieren"),
         "start" to mapOf("ru" to "начать", "de" to "starten"),
         "creating" to mapOf("ru" to "создание", "de" to "erstellen"),
         "media" to mapOf("ru" to "медиа", "de" to "medien"),
         "cancel" to mapOf("ru" to "отмена", "de" to "abbrechen"),
-        "acknowledge" to mapOf("ru" to "подтвердить", "de" to "bestätigen"),
-        "policy" to mapOf("ru" to "политика", "de" to "richtlinie"),
-        "terms" to mapOf("ru" to "условия", "de" to "bedingungen"),
-        "rights" to mapOf("ru" to "права", "de" to "rechte"),
-        "images" to mapOf("ru" to "изображения", "de" to "bilder"),
-        "upload" to mapOf("ru" to "загрузка", "de" to "hochladen"),
-        "content" to mapOf("ru" to "контент", "de" to "inhalt")
+        "acknowledge" to mapOf("ru" to "подтвердить", "de" to "bestätigen")
     )
 
     fun sanitizeOcrHomoglyphs(str: String): String {
@@ -152,8 +153,8 @@ object OfflineTranslationEngine {
             else if ((code in 65..90) || (code in 97..122)) latinCount++
         }
 
-        // If predominantly Latin, replace OCR Cyrillic misreads with Latin equivalents
-        if (latinCount > cyrillicCount && latinCount > 0) {
+        // Only sanitize homoglyphs when one script strongly dominates (> 75%)
+        if (latinCount > cyrillicCount * 3 && latinCount > 0) {
             return str
                 .replace('п', 'n')
                 .replace('П', 'N')
@@ -175,7 +176,7 @@ object OfflineTranslationEngine {
                 .replace('У', 'Y')
                 .replace('і', 'i')
                 .replace('І', 'I')
-        } else if (cyrillicCount > latinCount && cyrillicCount > 0) {
+        } else if (cyrillicCount > latinCount * 3 && cyrillicCount > 0) {
             return str
                 .replace('p', 'р')
                 .replace('P', 'Р')
@@ -196,16 +197,12 @@ object OfflineTranslationEngine {
     }
 
     private fun normalizeForMatch(str: String): String {
-        val sanitized = sanitizeOcrHomoglyphs(str)
-        return sanitized.lowercase()
+        return str.lowercase()
             .replace(Regex("[.,!?:;—–\"'()]+"), " ")
             .replace(Regex("\\s+"), " ")
             .trim()
     }
 
-    /**
-     * Splits CamelCase or compound words (e.g. "ScreenTranslator" -> ["Screen", "Translator"])
-     */
     fun splitCompoundWord(word: String): List<String> {
         val clean = word.trim()
         if (clean.length < 4) return listOf(clean)
@@ -216,7 +213,7 @@ object OfflineTranslationEngine {
             return camelParts.filter { it.isNotBlank() }
         }
 
-        // 2. Sub-root split for lowercase compounds (e.g. "screentranslator" -> ["screen", "translator"])
+        // 2. Sub-root split for lowercase compounds
         val lower = clean.lowercase()
         for ((key, _) in DICTIONARY) {
             if (key.length >= 3 && lower.startsWith(key) && lower.length > key.length) {
@@ -230,8 +227,12 @@ object OfflineTranslationEngine {
         return listOf(clean)
     }
 
+    /**
+     * Translates whole sentences, sub-phrases, or mixed language text into targetLang.
+     * Supports mixed text: translates Latin words inside Russian sentences and vice-versa!
+     */
     fun translate(text: String, srcLang: String, targetLang: String): String {
-        if (text.isBlank() || srcLang == targetLang) return text
+        if (text.isBlank()) return text
 
         val sanitizedText = sanitizeOcrHomoglyphs(text)
         val normalizedInput = normalizeForMatch(sanitizedText)
@@ -243,7 +244,7 @@ object OfflineTranslationEngine {
                 "de" -> normalizeForMatch(p.de)
                 else -> normalizeForMatch(p.ru)
             }
-            if (normalizedInput == srcPhraseNorm) {
+            if (normalizedInput == srcPhraseNorm || normalizedInput == normalizeForMatch(p.en) || normalizedInput == normalizeForMatch(p.de)) {
                 val res = when (targetLang) {
                     "en" -> p.en
                     "de" -> p.de
@@ -253,30 +254,58 @@ object OfflineTranslationEngine {
             }
         }
 
-        // 2. Sub-phrase match
+        // 2. Inline sub-phrase replacement (e.g. replacing "ich habe bock" inside a long Russian article)
+        var workingText = sanitizedText
         for (p in PHRASES) {
-            val srcPhraseNorm = when (srcLang) {
-                "en" -> normalizeForMatch(p.en)
-                "de" -> normalizeForMatch(p.de)
-                else -> normalizeForMatch(p.ru)
+            val phraseToSearch = when {
+                targetLang == "ru" -> listOf(p.de, p.en)
+                targetLang == "en" -> listOf(p.ru, p.de)
+                else -> listOf(p.ru, p.en)
             }
-            if (normalizedInput.contains(srcPhraseNorm)) {
-                val res = when (targetLang) {
-                    "en" -> p.en
-                    "de" -> p.de
-                    else -> p.ru
+            val replacement = when (targetLang) {
+                "en" -> p.en
+                "de" -> p.de
+                else -> p.ru
+            }
+
+            for (phraseCandidate in phraseToSearch) {
+                if (phraseCandidate.length >= 4) {
+                    val regex = Regex("(?i)\\b${Regex.escape(phraseCandidate)}\\b")
+                    if (regex.containsMatchIn(workingText)) {
+                        workingText = regex.replace(workingText, "[$replacement]")
+                    }
                 }
-                return res.replaceFirstChar { it.uppercaseChar() }
             }
         }
 
-        // 3. Tokenized word-by-word with CamelCase / compound splitting
-        val tokens = sanitizedText.split(Regex("(?<=[\\s.,!?:;—–()\"'/])|(?=[\\s.,!?:;—–()\"'/])"))
+        // 3. Token-by-token translation with CamelCase and mixed language support
+        val tokens = workingText.split(Regex("(?<=[\\s.,!?:;—–()\"'/])|(?=[\\s.,!?:;—–()\"'/])"))
         val sb = StringBuilder()
 
         for (token in tokens) {
             val trimmed = token.trim()
             if (trimmed.isEmpty() || !trimmed.any { it.isLetter() }) {
+                sb.append(token)
+                continue
+            }
+
+            // Already translated sub-phrase in brackets
+            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                sb.append(trimmed.substring(1, trimmed.length - 1))
+                continue
+            }
+
+            val hasLatin = trimmed.any { (it in 'a'..'z') || (it in 'A'..'Z') || (it in "äöüßÄÖÜ") }
+            val hasCyrillic = trimmed.any { (it.code in 0x0400..0x04FF) }
+
+            // If translating to Russian, and this word is already Cyrillic, keep it!
+            if (targetLang == "ru" && hasCyrillic && !hasLatin) {
+                sb.append(token)
+                continue
+            }
+
+            // If translating to English, and this word is already plain English, keep it!
+            if (targetLang == "en" && hasLatin && !hasCyrillic && !trimmed.any { it in "äöüßÄÖÜ" }) {
                 sb.append(token)
                 continue
             }
@@ -291,7 +320,7 @@ object OfflineTranslationEngine {
                 continue
             }
 
-            // Compound / CamelCase lookup (e.g. ScreenTranslator, ScreenCast)
+            // Compound / CamelCase lookup (e.g. ScreenTranslator)
             val subParts = splitCompoundWord(trimmed)
             if (subParts.size > 1) {
                 val subTranslations = subParts.map { part ->

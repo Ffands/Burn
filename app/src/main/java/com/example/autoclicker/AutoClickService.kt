@@ -46,6 +46,16 @@ class AutoClickService : AccessibilityService() {
 
             uiManager.showFloatingTrigger()
             Toast.makeText(this, "Переводчик экрана готов! Нажмите 文/A для перевода.", Toast.LENGTH_LONG).show()
+
+            // Asynchronously prepare Huawei on-device neural translation models
+            Thread {
+                try {
+                    HuaweiTranslationManager.prepareModel("en", "ru")
+                    HuaweiTranslationManager.prepareModel("de", "ru")
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }.start()
         } catch (e: Exception) {
             e.printStackTrace()
         }

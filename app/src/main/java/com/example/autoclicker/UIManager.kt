@@ -233,7 +233,12 @@ class UIManager(private val service: AutoClickService) {
         }
 
         val langTag = TextView(service).apply {
-            text = "${block.detectedLang.uppercase()} → ${block.targetLang.uppercase()}"
+            val fromTag = when (block.detectedLang) {
+                "mix" -> "СМЕШАННЫЙ"
+                block.targetLang -> "СМЕШАННЫЙ"
+                else -> block.detectedLang.uppercase()
+            }
+            text = "$fromTag → ${block.targetLang.uppercase()}"
             setTextColor(Color.parseColor("#60A5FA"))
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
@@ -275,6 +280,15 @@ class UIManager(private val service: AutoClickService) {
             setTextIsSelectable(true)
         }
         card.addView(transText)
+
+        // Asynchronously enhance translation with Huawei On-Device Neural Translator
+        HuaweiTranslationManager.translate(block.originalText, block.detectedLang, block.targetLang) { neuralText ->
+            service.mainHandler.post {
+                if (!neuralText.isNullOrBlank() && neuralText != block.originalText) {
+                    transText.text = neuralText
+                }
+            }
+        }
 
         // Original Text
         val origTitle = TextView(service).apply {
