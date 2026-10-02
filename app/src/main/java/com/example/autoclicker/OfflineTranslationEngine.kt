@@ -5,6 +5,7 @@ object OfflineTranslationEngine {
     private data class Phrase(val ru: String, val en: String, val de: String)
 
     private val PHRASES = listOf(
+        Phrase("чтобы быть образованным нужно много учиться", "to be educated you need to study a lot", "um gebildet zu sein muss man viel lernen"),
         Phrase("привет как дела", "hello how are you", "hallo wie geht es dir"),
         Phrase("все отлично спасибо", "everything is great thank you", "alles ist super danke"),
         Phrase("где ты сейчас", "where are you now", "wo bist du jetzt"),
@@ -33,10 +34,30 @@ object OfflineTranslationEngine {
         Phrase("статус заказа", "order status", "bestellstatus"),
         Phrase("оплачено", "paid", "bezahlt"),
         Phrase("в обработке", "processing", "in bearbeitung"),
-        Phrase("доставлено", "delivered", "zugestellt")
+        Phrase("доставлено", "delivered", "zugestellt"),
+        Phrase("начать создание с медиа", "start creating with media", "beginnen sie mit der medienerstellung"),
+        Phrase("запрещенная политика использования", "prohibited use policy", "richtlinie für unzulässige nutzung"),
+        Phrase("условия использования", "terms of use", "nutzungsbedingungen"),
+        Phrase("подтвердить", "acknowledge", "bestätigen"),
+        Phrase("отмена", "cancel", "abbrechen")
     )
 
     private val DICTIONARY = mapOf(
+        // Educational & Common
+        "educated" to mapOf("ru" to "образованный", "de" to "gebildet"),
+        "study" to mapOf("ru" to "учиться", "de" to "lernen"),
+        "lot" to mapOf("ru" to "много", "de" to "viel"),
+        "need" to mapOf("ru" to "нужно", "de" to "müssen"),
+        "gebildet" to mapOf("ru" to "образованный", "en" to "educated"),
+        "lernen" to mapOf("ru" to "учиться", "en" to "study"),
+        "viel" to mapOf("ru" to "много", "en" to "lot"),
+        "muss" to mapOf("ru" to "нужно", "en" to "must"),
+        "образованный" to mapOf("en" to "educated", "de" to "gebildet"),
+        "учиться" to mapOf("en" to "study", "de" to "lernen"),
+        "много" to mapOf("en" to "a lot", "de" to "viel"),
+        "нужно" to mapOf("en" to "need", "de" to "muss"),
+
+        // UI & Tech
         "текст" to mapOf("en" to "text", "de" to "text"),
         "экран" to mapOf("en" to "screen", "de" to "bildschirm"),
         "язык" to mapOf("en" to "language", "de" to "sprache"),
@@ -73,22 +94,41 @@ object OfflineTranslationEngine {
         "pack" to mapOf("ru" to "пакет", "de" to "paket"),
         "recognition" to mapOf("ru" to "распознавание", "de" to "erkennung"),
         "mode" to mapOf("ru" to "режим", "de" to "modus"),
-        "offline" to mapOf("ru" to "офлайн", "de" to "offline")
+        "offline" to mapOf("ru" to "офлайн", "de" to "offline"),
+        "generating" to mapOf("ru" to "генерация", "de" to "generieren"),
+        "start" to mapOf("ru" to "начать", "de" to "starten"),
+        "creating" to mapOf("ru" to "создание", "de" to "erstellen"),
+        "media" to mapOf("ru" to "медиа", "de" to "medien"),
+        "cancel" to mapOf("ru" to "отмена", "de" to "abbrechen"),
+        "acknowledge" to mapOf("ru" to "подтвердить", "de" to "bestätigen"),
+        "policy" to mapOf("ru" to "политика", "de" to "richtlinie"),
+        "terms" to mapOf("ru" to "условия", "de" to "bedingungen"),
+        "rights" to mapOf("ru" to "права", "de" to "rechte"),
+        "images" to mapOf("ru" to "изображения", "de" to "bilder"),
+        "upload" to mapOf("ru" to "загрузка", "de" to "hochladen"),
+        "content" to mapOf("ru" to "контент", "de" to "inhalt")
     )
+
+    private fun normalizeForMatch(str: String): String {
+        return str.lowercase()
+            .replace(Regex("[.,!?:;—–\"'()]+"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
 
     fun translate(text: String, srcLang: String, targetLang: String): String {
         if (text.isBlank() || srcLang == targetLang) return text
 
-        val clean = text.trim().lowercase()
+        val normalizedInput = normalizeForMatch(text)
 
-        // 1. Exact phrase match
+        // 1. Exact phrase match (ignoring punctuation)
         for (p in PHRASES) {
-            val srcPhrase = when (srcLang) {
-                "en" -> p.en
-                "de" -> p.de
-                else -> p.ru
+            val srcPhraseNorm = when (srcLang) {
+                "en" -> normalizeForMatch(p.en)
+                "de" -> normalizeForMatch(p.de)
+                else -> normalizeForMatch(p.ru)
             }
-            if (clean == srcPhrase.lowercase()) {
+            if (normalizedInput == srcPhraseNorm) {
                 val res = when (targetLang) {
                     "en" -> p.en
                     "de" -> p.de
@@ -98,19 +138,50 @@ object OfflineTranslationEngine {
             }
         }
 
-        // 2. Tokenized dictionary match
-        val words = text.split(Regex("(\\s+|[.,!?:;—–])"))
-        val translated = words.map { token ->
-            val lower = token.lowercase()
-            val match = DICTIONARY[lower]?.get(targetLang)
-            if (match != null) {
-                if (token.isNotEmpty() && token[0].isUpperCase()) match.replaceFirstChar { it.uppercaseChar() } else match
-            } else {
-                token
+        // 2. Sub-phrase match
+        for (p in PHRASES) {
+            val srcPhraseNorm = when (srcLang) {
+                "en" -> normalizeForMatch(p.en)
+                "de" -> normalizeForMatch(p.de)
+                else -> normalizeForMatch(p.ru)
+            }
+            if (normalizedInput.contains(srcPhraseNorm)) {
+                val res = when (targetLang) {
+                    "en" -> p.en
+                    "de" -> p.de
+                    else -> p.ru
+                }
+                return res.replaceFirstChar { it.uppercaseChar() }
             }
         }
 
-        val result = translated.joinToString(" ").replace(Regex("\\s+"), " ").trim()
+        // 3. Tokenized word-by-word match with punctuation preservation (supports mixed language)
+        val tokens = text.split(Regex("(?<=[\\s.,!?:;—–()\"'])|(?=[\\s.,!?:;—–()\"'])"))
+        val sb = StringBuilder()
+
+        for (token in tokens) {
+            val trimmed = token.trim()
+            if (trimmed.isEmpty() || !trimmed.any { it.isLetter() }) {
+                sb.append(token)
+                continue
+            }
+
+            val lower = trimmed.lowercase()
+            val match = DICTIONARY[lower]?.get(targetLang)
+            if (match != null) {
+                val formatted = if (trimmed.isNotEmpty() && trimmed[0].isUpperCase()) {
+                    match.replaceFirstChar { it.uppercaseChar() }
+                } else {
+                    match
+                }
+                sb.append(formatted)
+            } else {
+                // Keep original word if no translation or already in target language
+                sb.append(token)
+            }
+        }
+
+        val result = sb.toString().replace(Regex("\\s+"), " ").trim()
         return if (result.isNotBlank()) result.replaceFirstChar { it.uppercaseChar() } else text
     }
 }

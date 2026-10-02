@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -113,13 +114,24 @@ class UIManager(private val service: AutoClickService) {
         clearTranslationOverlay()
 
         val container = FrameLayout(service)
+        
+        // FIX 1 & 2: Fullscreen spanning physical display edge-to-edge (eliminates notch/status bar offset)
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
-        )
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = 0
+            y = 0
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            }
+        }
 
         // Close overlay if tapped anywhere in background
         container.setOnClickListener {
@@ -131,8 +143,8 @@ class UIManager(private val service: AutoClickService) {
 
             // 1. Block boundary highlight
             val boxView = View(service).apply {
-                val strokeColor = if (block.isSkippedSameLang) Color.parseColor("#4471717A") else Color.parseColor("#803B82F6")
-                val fillColor = if (block.isSkippedSameLang) Color.parseColor("#1571717A") else Color.parseColor("#202563EB")
+                val strokeColor = if (block.isSkippedSameLang) Color.parseColor("#4471717A") else Color.parseColor("#903B82F6")
+                val fillColor = if (block.isSkippedSameLang) Color.parseColor("#1071717A") else Color.parseColor("#252563EB")
 
                 val drawable = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
@@ -149,7 +161,7 @@ class UIManager(private val service: AutoClickService) {
             }
             container.addView(boxView, boxParams)
 
-            // 2. Corner badge for translation (only if not already target language)
+            // 2. Corner badge for translation (only for translatable items)
             if (!block.isSkippedSameLang) {
                 val badgeSize = dpToPx(32)
                 val badgeBtn = TextView(service).apply {
@@ -172,7 +184,7 @@ class UIManager(private val service: AutoClickService) {
                     }
                 }
 
-                // Place exactly at nearest corner
+                // Place strictly at nearest corner to center of screen
                 val nearest = block.nearestCorner
                 val badgeParams = FrameLayout.LayoutParams(badgeSize, badgeSize).apply {
                     leftMargin = (nearest.x - badgeSize / 2).toInt()
@@ -325,9 +337,18 @@ class UIManager(private val service: AutoClickService) {
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
-        )
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = 0
+            y = 0
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            }
+        }
 
         fullscreenDialogView = root
         windowManager.addView(root, dialogParams)

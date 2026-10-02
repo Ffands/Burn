@@ -3,11 +3,15 @@ package com.example.autoclicker
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityService.ScreenshotResult
 import android.accessibilityservice.AccessibilityService.TakeScreenshotCallback
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.DisplayMetrics
 import android.view.Display
+import android.view.WindowManager
 import android.widget.Toast
 import com.huawei.hms.mlsdk.MLAnalyzerFactory
 import com.huawei.hms.mlsdk.common.MLApplication
@@ -41,7 +45,7 @@ class AutoClickService : AccessibilityService() {
             uiManager.currentTargetLanguage = targetLanguage
 
             uiManager.showFloatingTrigger()
-            Toast.makeText(this, "Переводчик экрана активирован! Нажмите 文/A для перевода.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Переводчик экрана готов! Нажмите 文/A для перевода.", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -54,6 +58,19 @@ class AutoClickService : AccessibilityService() {
             .edit()
             .putString("TargetLanguage", lang)
             .apply()
+    }
+
+    private fun getRealScreenSize(): Pair<Int, Int> {
+        val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val bounds = wm.maximumWindowMetrics.bounds
+            Pair(bounds.width(), bounds.height())
+        } else {
+            val dm = DisplayMetrics()
+            @Suppress("DEPRECATION")
+            wm.defaultDisplay.getRealMetrics(dm)
+            Pair(dm.widthPixels, dm.heightPixels)
+        }
     }
 
     fun scanAndTranslateScreen() {
@@ -91,19 +108,19 @@ class AutoClickService : AccessibilityService() {
     private fun processScreenshotForTranslation(bitmap: Bitmap) {
         Thread {
             try {
-                val enhanced = enhanceBitmapForOcr(bitmap)
+                val (screenW, screenH) = getRealScreenSize()
+                val scaleX = screenW.toFloat() / bitmap.width
+                val scaleY = screenH.toFloat() / bitmap.height
+
+                // Native 1:1 frame input to avoid 1.5x displacement or distortion!
                 val analyzer = getHuaweiAnalyzer("ru")
-                val frame = MLFrame.fromBitmap(enhanced)
+                val frame = MLFrame.fromBitmap(bitmap)
 
                 analyzer.asyncAnalyseFrame(frame)
                     .addOnSuccessListener { result: MLText? ->
-                        if (enhanced != bitmap && !enhanced.isRecycled) enhanced.recycle()
                         if (!bitmap.isRecycled) bitmap.recycle()
 
                         val rawItems = mutableListOf<RawOcrItem>()
-                        val metrics = resources.displayMetrics
-                        val screenW = metrics.widthPixels
-                        val screenH = metrics.heightPixels
 
                         if (result != null) {
                             var itemCounter = 0
@@ -113,24 +130,42 @@ class AutoClickService : AccessibilityService() {
                                     if (lineText.isNullOrBlank()) continue
                                     
                                     val normText = normalizeCyrillic(lineText)
+
+                                    // FIX 4: Discard single-character noise (e.g. column headers 'D', single digits, icons)
+                                    if (LanguageDetectorOffline.isIgnorableNoise(normText)) {
+                                        continue
+                                    }
+
+                                    val border = line.border ?: Rect(0, 0, 0, 0)
+                                    // Map directly to real screen coordinates
+                                    val mappedRect = Rect(
+                                        (border.left * scaleX).toInt(),
+                                        (border.top * scaleY).toInt(),
+                                        (border.right * scaleX).toInt(),
+                                        (border.bottom * scaleY).toInt()
+                                    )
+
                                     rawItems.add(
                                         RawOcrItem(
                                             id = "line_${itemCounter++}",
                                             text = normText,
-                                            rect = line.border ?: Rect(0, 0, 0, 0)
+                                            rect = mappedRect
                                         )
                                     )
                                 }
                             }
                         }
 
-                        // Pure geometric clustering (no punctuation dependency)
-                        val clustered = GeometryHelper.clusterBlocksGeometrically(rawItems, 1.25f)
+                        // FIX 3: Geometric clustering with language isolation (does not glue different languages or rows)
+                        val clustered = GeometryHelper.clusterBlocksGeometrically(rawItems, 0.65f)
 
                         // Process translations & nearest corners
                         val translationBlocks = clustered.mapIndexed { index, item ->
                             val detected = LanguageDetectorOffline.detect(item.text)
-                            val isSkipped = detected == targetLanguage
+                            // FIX 3: Check if text contains any translatable content into target language (supports mixed language)
+                            val hasTranslatable = LanguageDetectorOffline.hasTranslatableContent(item.text, targetLanguage)
+                            val isSkipped = !hasTranslatable
+
                             val nearest = GeometryHelper.calculateNearestCorner(item.rect, screenW, screenH)
 
                             val translated = if (isSkipped) {
@@ -158,7 +193,6 @@ class AutoClickService : AccessibilityService() {
                         }
                     }
                     .addOnFailureListener { e ->
-                        if (enhanced != bitmap && !enhanced.isRecycled) enhanced.recycle()
                         if (!bitmap.isRecycled) bitmap.recycle()
                         handler.post {
                             Toast.makeText(this@AutoClickService, "Ошибка распознавания: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -172,15 +206,6 @@ class AutoClickService : AccessibilityService() {
                 }
             }
         }.start()
-    }
-
-    fun enhanceBitmapForOcr(src: Bitmap): Bitmap {
-        val w = src.width
-        val h = src.height
-        val scale = if (w < 150 || h < 150) 2f else 1.5f
-        val sw = (w * scale).toInt()
-        val sh = (h * scale).toInt()
-        return Bitmap.createScaledBitmap(src, sw, sh, true)
     }
 
     private fun getHuaweiAnalyzer(lang: String): MLTextAnalyzer {
@@ -222,24 +247,8 @@ class AutoClickService : AccessibilityService() {
             .replace("3", "з")
             .replace("4", "ч")
             .replace("9", " э")
-            .replace("a", "а")
             .replace("b", "ь")
-            .replace("c", "с")
-            .replace("e", "е")
-            .replace("k", "к")
-            .replace("m", "м")
-            .replace("h", "н")
-            .replace("o", "о")
-            .replace("p", "р")
-            .replace("t", "т")
-            .replace("x", "х")
-            .replace("y", "у")
-            .replace("n", "и")
-            .replace("l", "л")
-            .replace("u", "и")
             .replace("ñ", "й")
-            .replace("r", "г")
-            .replace("ó", "ф")
 
         return s.replace(Regex("\\s+"), " ").trim()
     }

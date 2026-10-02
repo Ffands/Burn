@@ -77,47 +77,54 @@ object GeometryHelper {
     }
 
     /**
-     * Pure geometric layout clustering.
-     * Merges lines into coherent paragraphs or blocks without relying on punctuation!
-     * Preserves columns (tables, chat bubbles, UI lists).
+     * Geometric layout clustering with strict language separation.
+     * Prevents merging table rows or dialogue lines with different languages!
      */
     fun clusterBlocksGeometrically(
         items: List<RawOcrItem>,
-        lineGapFactor: Float = 1.25f
+        lineGapFactor: Float = 0.65f
     ): List<RawOcrItem> {
         if (items.size <= 1) return items
 
         val sorted = items.sortedWith { a, b ->
             val yDiff = a.rect.top - b.rect.top
-            if (Math.abs(yDiff) > 8) yDiff else a.rect.left - b.rect.left
+            if (Math.abs(yDiff) > 12) yDiff else a.rect.left - b.rect.left
         }
 
         val clusters = mutableListOf<MutableList<RawOcrItem>>()
 
         for (item in sorted) {
+            val itemLang = LanguageDetectorOffline.detect(item.text)
             var merged = false
+
             for (cluster in clusters) {
+                val clusterFirstLang = LanguageDetectorOffline.detect(cluster[0].text)
+                
+                // CRITICAL FIX: NEVER merge lines of different languages (e.g. Russian and English table cells)
+                if (itemLang != "und" && clusterFirstLang != "und" && itemLang != clusterFirstLang) {
+                    continue
+                }
+
                 val clusterLeft = cluster.minOf { it.rect.left }
                 val clusterRight = cluster.maxOf { it.rect.right }
                 val clusterTop = cluster.minOf { it.rect.top }
                 val clusterBottom = cluster.maxOf { it.rect.bottom }
 
-                val avgLineHeight = Math.max(16f, (clusterBottom - clusterTop).toFloat() / cluster.size)
+                val avgLineHeight = Math.max(20f, (clusterBottom - clusterTop).toFloat() / cluster.size)
                 val verticalGap = item.rect.top - clusterBottom
                 val maxAllowedGap = avgLineHeight * lineGapFactor
 
-                val isVerticallyAdjacent = verticalGap >= -avgLineHeight * 0.5f && verticalGap <= maxAllowedGap
+                val isVerticallyAdjacent = verticalGap >= -avgLineHeight * 0.3f && verticalGap <= maxAllowedGap
 
-                // Horizontal overlap or alignment check
+                // Overlap check
                 val xOverlap = Math.min(clusterRight, item.rect.right) - Math.max(clusterLeft, item.rect.left)
-                val isHorizontallyAligned = xOverlap > 5 ||
-                        Math.abs(clusterLeft - item.rect.left) < 24 ||
-                        Math.abs(clusterRight - item.rect.right) < 24
+                val minWidth = Math.min(clusterRight - clusterLeft, item.rect.right - item.rect.left)
+                val hasOverlapRatio = minWidth > 0 && (xOverlap.toFloat() / minWidth) > 0.35f
 
-                // Gutter / column separation (e.g. distinct table column)
-                val isSeparateColumn = item.rect.left > clusterRight + 16 || clusterLeft > item.rect.right + 16
+                // Table column separation check
+                val isSeparateColumn = item.rect.left > clusterRight + 12 || clusterLeft > item.rect.right + 12
 
-                if (isVerticallyAdjacent && isHorizontallyAligned && !isSeparateColumn) {
+                if (isVerticallyAdjacent && hasOverlapRatio && !isSeparateColumn) {
                     cluster.add(item)
                     merged = true
                     break
@@ -153,15 +160,69 @@ object LanguageDetectorOffline {
         "sie", "wir", "ihr", "für", "ein", "eine", "einer", "einem", "einen",
         "mit", "auf", "nach", "zu", "im", "in", "von", "als", "auch", "es",
         "an", "er", "hat", "haben", "dass", "wenn", "aber", "hier", "bitte",
-        "danke", "guten", "tag", "morgen", "abend", "wie", "geht", "alles"
+        "danke", "guten", "tag", "morgen", "abend", "wie", "geht", "alles",
+        "sein", "muss", "man", "viel", "lernen", "gebildet"
     )
     private val ENGLISH_COMMON = setOf(
         "the", "and", "of", "to", "in", "is", "are", "that", "this", "was",
         "were", "for", "it", "with", "as", "on", "be", "at", "by", "have",
         "has", "had", "from", "or", "but", "not", "what", "all", "we", "when",
         "your", "you", "can", "could", "there", "their", "which", "do", "how",
-        "will", "would", "about", "out", "many", "then", "them", "these", "so"
+        "will", "would", "about", "out", "many", "then", "them", "these", "so",
+        "study", "educated", "lot", "need"
     )
+
+    /**
+     * Filters out single characters like 'D', 'A', '1', and non-letter noise.
+     */
+    fun isIgnorableNoise(text: String): Boolean {
+        val clean = text.trim()
+        if (clean.length <= 1) return true
+
+        val letters = clean.filter { it.isLetter() }
+        if (letters.length < 2) return true
+
+        // Ignore pure single-letter tokens (e.g. "D" or "  D  ")
+        val words = clean.split(Regex("\\s+")).filter { it.isNotBlank() }
+        val meaningfulWords = words.filter { w -> w.any { it.isLetter() } && w.length >= 2 }
+        return meaningfulWords.isEmpty()
+    }
+
+    /**
+     * Determines whether text contains any foreign content that can and should be translated into targetLang.
+     * Prevents skipping mixed language blocks!
+     */
+    fun hasTranslatableContent(text: String, targetLang: String): Boolean {
+        val clean = text.trim()
+        if (isIgnorableNoise(clean)) return false
+
+        var cyrillicCount = 0
+        var latinCount = 0
+        for (ch in clean) {
+            val code = ch.code
+            if (code in 0x0400..0x04FF) {
+                cyrillicCount++
+            } else if ((code in 65..90) || (code in 97..122)) {
+                latinCount++
+            }
+        }
+
+        return when (targetLang) {
+            "ru" -> {
+                // If translating to Russian, ANY Latin words/letters mean there is translatable content!
+                latinCount >= 2 || GERMAN_UMLAUTS.containsMatchIn(clean)
+            }
+            "en" -> {
+                // If translating to English, ANY Cyrillic or German umlauts mean translatable content
+                cyrillicCount >= 2 || GERMAN_UMLAUTS.containsMatchIn(clean)
+            }
+            "de" -> {
+                // If translating to German, ANY Cyrillic or non-German content
+                cyrillicCount >= 2 || latinCount >= 2
+            }
+            else -> true
+        }
+    }
 
     fun detect(text: String): String {
         if (text.isBlank()) return "und"
