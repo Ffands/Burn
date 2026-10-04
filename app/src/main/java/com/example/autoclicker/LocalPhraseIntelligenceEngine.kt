@@ -50,7 +50,16 @@ object LocalPhraseIntelligenceEngine {
         IdiomEntry(Pattern.compile("(?i)\\bno\\s+matter\\s+what\\b"), "несмотря ни на что"),
         IdiomEntry(Pattern.compile("(?i)\\bon\\s+the\\s+other\\s+hand\\b"), "с другой стороны"),
         IdiomEntry(Pattern.compile("(?i)\\bfirst\\s+of\\s+all\\b"), "прежде всего"),
-        IdiomEntry(Pattern.compile("(?i)\\bto\\s+be\\s+honest\\b"), "честно говоря")
+        IdiomEntry(Pattern.compile("(?i)\\bto\\s+be\\s+honest\\b"), "честно говоря"),
+
+        // Android Brands, UI Apps, and Services (Never mangle into literal absurdities like "Google Играть"!)
+        IdiomEntry(Pattern.compile("(?i)\\bgoogle\\s+play\\b"), "Google Play"),
+        IdiomEntry(Pattern.compile("(?i)\\bplay\\s+market\\b"), "Play Market"),
+        IdiomEntry(Pattern.compile("(?i)\\bapp\\s+market\\b"), "App Market (Магазин приложений)"),
+        IdiomEntry(Pattern.compile("(?i)\\btalkback\\b"), "TalkBack (Озвучивание экрана)"),
+        IdiomEntry(Pattern.compile("(?i)\\brustore\\b"), "RuStore"),
+        IdiomEntry(Pattern.compile("(?i)\\balfa\\s+pay\\b"), "Alfa Pay"),
+        IdiomEntry(Pattern.compile("(?i)\\bos\\s+updater\\b"), "Обновление системы (OS Updater)")
     )
 
     // German Idioms and Collocations

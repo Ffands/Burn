@@ -175,6 +175,7 @@ class AutoClickService : AccessibilityService() {
                         val clustered = GeometryHelper.clusterBlocksGeometrically(rawItems, 0.65f)
 
                         val prefs = getSharedPreferences("ScreenTranslatorPrefs", MODE_PRIVATE)
+                        targetLanguage = prefs.getString("TargetLanguage", "ru") ?: "ru"
                         val engineMode = prefs.getString("TranslationEngineMode", "hybrid") ?: "hybrid"
 
                         // Process translations & nearest corners
@@ -246,6 +247,7 @@ class AutoClickService : AccessibilityService() {
             MLApplication.getInstance().apiKey = "dummy_api_key_for_local_use_only"
             val setting = MLLocalTextSetting.Factory()
                 .setOCRMode(MLLocalTextSetting.OCR_DETECT_MODE)
+                .setLanguage("ru")
                 .create()
             mlTextAnalyzer = MLAnalyzerFactory.getInstance().getLocalTextAnalyzer(setting)
             return mlTextAnalyzer!!

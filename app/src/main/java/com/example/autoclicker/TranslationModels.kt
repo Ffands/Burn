@@ -224,28 +224,40 @@ object LanguageDetectorOffline {
         val clean = text.trim()
         if (isIgnorableNoise(clean)) return false
 
-        var cyrillicCount = 0
-        var latinCount = 0
-        for (ch in clean) {
-            val code = ch.code
-            if (code in 0x0400..0x04FF) {
-                cyrillicCount++
-            } else if ((code in 65..90) || (code in 97..122)) {
-                latinCount++
+        // Common technical tokens, mobile units, battery/time info to ignore
+        val ignoredTokens = setOf("4g", "5g", "3g", "lte", "kb/s", "mb/s", "gb", "mb", "kb", "sim", "hd", "am", "pm", "ok", "wi-fi", "wifi", "v", "re", "t2")
+
+        // Split into words
+        val words = clean.split(Regex("\\s+")).filter { it.isNotBlank() }
+        var foreignWordCount = 0
+        var cyrillicWordCount = 0
+
+        for (w in words) {
+            val lettersOnly = w.filter { it.isLetter() }
+            if (lettersOnly.length < 2) continue
+
+            val hasCyrillic = lettersOnly.any { it.code in 0x0400..0x04FF }
+            val hasLatin = lettersOnly.any { (it in 'a'..'z') || (it in 'A'..'Z') || (it in "äöüßÄÖÜ") }
+
+            if (hasCyrillic) {
+                // If the word contains ANY Cyrillic character, it is a Russian word
+                // (even if OCR mistakenly recognized 'o' or 'e' as Latin)
+                cyrillicWordCount++
+            } else if (hasLatin) {
+                if (!ignoredTokens.contains(lettersOnly.lowercase())) {
+                    foreignWordCount++
+                }
             }
         }
 
         return when (targetLang) {
             "ru" -> {
-                // If text is predominantly Cyrillic / Russian, do NOT flag as translatable into Russian!
-                if (cyrillicCount >= 3 && cyrillicCount >= latinCount) {
-                    false
-                } else {
-                    latinCount >= 2 || GERMAN_UMLAUTS.containsMatchIn(clean)
-                }
+                // To translate into Russian, there MUST be at least one real foreign word!
+                // If there are only Russian words (e.g. "Мастер игр", "Телефон", "Карты", "Зрение"), return FALSE!
+                foreignWordCount > 0
             }
-            "en" -> cyrillicCount >= 2 || GERMAN_UMLAUTS.containsMatchIn(clean)
-            "de" -> cyrillicCount >= 2 || latinCount >= 2
+            "en" -> cyrillicWordCount > 0 || GERMAN_UMLAUTS.containsMatchIn(clean)
+            "de" -> cyrillicWordCount > 0 || foreignWordCount > 0
             else -> true
         }
     }

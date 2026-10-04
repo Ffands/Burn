@@ -139,18 +139,18 @@ class UIManager(private val service: AutoClickService) {
         }
 
         for (block in blocks) {
+            // Never draw borders or badges on text that does not need translation (e.g. native Russian text)
+            if (block.isSkippedSameLang) continue
+
             val rect = block.rect
 
-            // 1. Block boundary highlight
+            // 1. Block boundary highlight (only for foreign translatable items)
             val boxView = View(service).apply {
-                val strokeColor = if (block.isSkippedSameLang) Color.parseColor("#4471717A") else Color.parseColor("#903B82F6")
-                val fillColor = if (block.isSkippedSameLang) Color.parseColor("#1071717A") else Color.parseColor("#252563EB")
-
                 val drawable = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
                     cornerRadius = dpToPx(6).toFloat()
-                    setStroke(dpToPx(1), strokeColor)
-                    setColor(fillColor)
+                    setStroke(dpToPx(1), Color.parseColor("#903B82F6"))
+                    setColor(Color.parseColor("#252563EB"))
                 }
                 background = drawable
             }
@@ -161,9 +161,8 @@ class UIManager(private val service: AutoClickService) {
             }
             container.addView(boxView, boxParams)
 
-            // 2. Corner badge for translation (only for translatable items)
-            if (!block.isSkippedSameLang) {
-                val badgeSize = dpToPx(32)
+            // 2. Corner badge for translation
+            val badgeSize = dpToPx(32)
                 val badgeBtn = TextView(service).apply {
                     text = "文/A"
                     setTextColor(Color.WHITE)
@@ -191,7 +190,6 @@ class UIManager(private val service: AutoClickService) {
                     topMargin = (nearest.y - badgeSize / 2).toInt()
                 }
                 container.addView(badgeBtn, badgeParams)
-            }
         }
 
         overlayContainerView = container
