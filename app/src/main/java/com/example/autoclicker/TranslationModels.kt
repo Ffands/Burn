@@ -227,6 +227,13 @@ object LanguageDetectorOffline {
         // Common technical tokens, mobile units, battery/time info to ignore
         val ignoredTokens = setOf("4g", "5g", "3g", "lte", "kb/s", "mb/s", "gb", "mb", "kb", "sim", "hd", "am", "pm", "ok", "wi-fi", "wifi", "v", "re", "t2")
 
+        val detected = detect(clean)
+
+        // If detected language is already target language, skip it!
+        if (detected != "und" && detected != "mix" && detected == targetLang) {
+            return false
+        }
+
         // Split into words
         val words = clean.split(Regex("\\s+")).filter { it.isNotBlank() }
         var foreignWordCount = 0
@@ -256,9 +263,9 @@ object LanguageDetectorOffline {
                 // If there are only Russian words (e.g. "Мастер игр", "Телефон", "Карты", "Зрение"), return FALSE!
                 foreignWordCount > 0
             }
-            "en" -> cyrillicWordCount > 0 || GERMAN_UMLAUTS.containsMatchIn(clean)
-            "de" -> cyrillicWordCount > 0 || foreignWordCount > 0
-            else -> true
+            "en" -> cyrillicWordCount > 0 || detected == "de" || GERMAN_UMLAUTS.containsMatchIn(clean)
+            "de" -> cyrillicWordCount > 0 || detected == "en" || (foreignWordCount > 0 && detected != "de")
+            else -> detected != targetLang
         }
     }
 

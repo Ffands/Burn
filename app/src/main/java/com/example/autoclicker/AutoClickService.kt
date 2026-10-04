@@ -88,35 +88,51 @@ class AutoClickService : AccessibilityService() {
     }
 
     fun scanAndTranslateScreen() {
-        Toast.makeText(this, "Сканирование экрана...", Toast.LENGTH_SHORT).show()
-
-        try {
-            takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
-                override fun onSuccess(screenshot: ScreenshotResult) {
-                    val buffer = screenshot.hardwareBuffer
-                    val hwBitmap = Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)
-                    if (hwBitmap != null) {
-                        val bitmap = hwBitmap.copy(Bitmap.Config.ARGB_8888, false)
-                        hwBitmap.recycle()
-                        buffer.close()
-
-                        if (bitmap != null) {
-                            processScreenshotForTranslation(bitmap)
-                            return
-                        }
-                    }
-                    buffer.close()
-                    Toast.makeText(this@AutoClickService, "Не удалось получить снимок экрана", Toast.LENGTH_SHORT).show()
-                }
-
-                override fun onFailure(errorCode: Int) {
-                    Toast.makeText(this@AutoClickService, "Ошибка захвата экрана: $errorCode", Toast.LENGTH_SHORT).show()
-                }
-            })
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Toast.makeText(this, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
+        // Clear old translation results and cards so they don't get captured in screenshot
+        if (::uiManager.isInitialized) {
+            uiManager.dismissFullscreenTranslation()
+            uiManager.clearTranslationOverlay()
+            uiManager.setFloatingTriggerVisibility(false)
         }
+
+        handler.postDelayed({
+            try {
+                takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+                    override fun onSuccess(screenshot: ScreenshotResult) {
+                        if (::uiManager.isInitialized) {
+                            uiManager.setFloatingTriggerVisibility(true)
+                        }
+                        val buffer = screenshot.hardwareBuffer
+                        val hwBitmap = Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)
+                        if (hwBitmap != null) {
+                            val bitmap = hwBitmap.copy(Bitmap.Config.ARGB_8888, false)
+                            hwBitmap.recycle()
+                            buffer.close()
+
+                            if (bitmap != null) {
+                                processScreenshotForTranslation(bitmap)
+                                return
+                            }
+                        }
+                        buffer.close()
+                        Toast.makeText(this@AutoClickService, "Не удалось получить снимок экрана", Toast.LENGTH_SHORT).show()
+                    }
+
+                    override fun onFailure(errorCode: Int) {
+                        if (::uiManager.isInitialized) {
+                            uiManager.setFloatingTriggerVisibility(true)
+                        }
+                        Toast.makeText(this@AutoClickService, "Ошибка захвата экрана: $errorCode", Toast.LENGTH_SHORT).show()
+                    }
+                })
+            } catch (e: Exception) {
+                if (::uiManager.isInitialized) {
+                    uiManager.setFloatingTriggerVisibility(true)
+                }
+                e.printStackTrace()
+                Toast.makeText(this, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }, 80)
     }
 
     private fun processScreenshotForTranslation(bitmap: Bitmap) {
@@ -247,7 +263,6 @@ class AutoClickService : AccessibilityService() {
             MLApplication.getInstance().apiKey = "dummy_api_key_for_local_use_only"
             val setting = MLLocalTextSetting.Factory()
                 .setOCRMode(MLLocalTextSetting.OCR_DETECT_MODE)
-                .setLanguage("ru")
                 .create()
             mlTextAnalyzer = MLAnalyzerFactory.getInstance().getLocalTextAnalyzer(setting)
             return mlTextAnalyzer!!

@@ -103,6 +103,10 @@ class UIManager(private val service: AutoClickService) {
         windowManager.addView(button, triggerParams)
     }
 
+    fun setFloatingTriggerVisibility(visible: Boolean) {
+        floatingTriggerView?.visibility = if (visible) View.VISIBLE else View.GONE
+    }
+
     fun removeFloatingTrigger() {
         floatingTriggerView?.let {
             windowManager.removeView(it)
@@ -112,6 +116,18 @@ class UIManager(private val service: AutoClickService) {
 
     fun renderTranslationBlocks(blocks: List<TranslationBlock>) {
         clearTranslationOverlay()
+
+        val translatableBlocks = blocks.filter { !it.isSkippedSameLang }
+        if (translatableBlocks.isEmpty()) {
+            val targetName = when (currentTargetLanguage) {
+                "ru" -> "русском"
+                "de" -> "немецком"
+                "en" -> "английском"
+                else -> currentTargetLanguage
+            }
+            Toast.makeText(service, "Весь текст на экране уже на $targetName языке", Toast.LENGTH_SHORT).show()
+            return
+        }
 
         val container = FrameLayout(service)
         
@@ -138,10 +154,7 @@ class UIManager(private val service: AutoClickService) {
             clearTranslationOverlay()
         }
 
-        for (block in blocks) {
-            // Never draw borders or badges on text that does not need translation (e.g. native Russian text)
-            if (block.isSkippedSameLang) continue
-
+        for (block in translatableBlocks) {
             val rect = block.rect
 
             // 1. Block boundary highlight (only for foreign translatable items)
