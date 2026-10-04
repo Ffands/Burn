@@ -47,7 +47,6 @@ object HuaweiTranslationManager {
         val translator = getLocalTranslator(srcLang, targetLang)
 
         val strategy = MLModelDownloadStrategy.Factory()
-            .needAllowedCellular() // Allow cellular (4G/5G) so mobile download succeeds
             .create()
 
         val listener = object : MLModelDownloadListener {
