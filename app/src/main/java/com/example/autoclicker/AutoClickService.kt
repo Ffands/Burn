@@ -39,6 +39,9 @@ class AutoClickService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         try {
+            // Load bundled 83,000+ words offline dictionary from assets immediately
+            AssetDictionaryManager.initialize(this)
+
             uiManager = UIManager(this)
             
             val prefs = getSharedPreferences("ScreenTranslatorPrefs", MODE_PRIVATE)

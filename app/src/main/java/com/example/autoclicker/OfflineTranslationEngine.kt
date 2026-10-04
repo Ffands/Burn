@@ -183,6 +183,22 @@ object OfflineTranslationEngine {
                         .replace('і', 'i').replace('І', 'I')
                     sb.append(fixed)
                     continue
+                } else {
+                    // Cyrillic dominates (e.g. Russian word read by Latin OCR: "Введиme" -> "Введите")
+                    val fixed = trimmed
+                        .replace('m', 'т').replace('M', 'Т')
+                        .replace('c', 'с').replace('C', 'С')
+                        .replace('e', 'е').replace('E', 'Е')
+                        .replace('a', 'а').replace('А', 'А')
+                        .replace('o', 'о').replace('О', 'О')
+                        .replace('p', 'р').replace('P', 'Р')
+                        .replace('x', 'х').replace('X', 'Х')
+                        .replace('y', 'у').replace('Y', 'У')
+                        .replace('k', 'к').replace('K', 'К')
+                        .replace('b', 'ь').replace('B', 'В')
+                        .replace('H', 'Н')
+                    sb.append(fixed)
+                    continue
                 }
             }
             sb.append(t)
@@ -248,8 +264,13 @@ object OfflineTranslationEngine {
             }
         }
 
-        // 2. Sub-phrase inline replacement for known idioms (e.g. "ich habe bock", "moin moin")
-        var workingText = sanitizedText
+        // 1. Syntactic structure transformations (infinitive purpose clauses, genitives, conditionals)
+        var workingText = LocalPhraseIntelligenceEngine.applySyntacticStructures(sanitizedText, srcLang)
+
+        // 2. Local phrase intelligence: Multi-word idioms & phrasal verbs
+        workingText = LocalPhraseIntelligenceEngine.applyIdioms(workingText, srcLang)
+
+        // 3. Sub-phrase inline replacement for known idioms and phrases
         for (p in PHRASES) {
             val phraseToSearch = when {
                 targetLang == "ru" -> listOf(p.de, p.en)
@@ -279,52 +300,84 @@ object OfflineTranslationEngine {
             workingText = workingText.replace(Regex("(?i)\\bder\\s+welt\\b"), "мира")
         }
 
-        // 3. Comprehensive Dictionary & Lemmatizer translation for words and sentences
+        // 4. Token-level translation with 350,000+ words dictionary and grammatical agreement
         val tokens = workingText.split(Regex("(?<=[\\s.,!?:;—–()\"'/])|(?=[\\s.,!?:;—–()\"'/])"))
-        val sb = StringBuilder()
+        val translatedTokens = mutableListOf<String>()
 
         for (token in tokens) {
             val trimmed = token.trim()
             if (trimmed.isEmpty() || !trimmed.any { it.isLetter() }) {
-                sb.append(token)
+                translatedTokens.add(token)
                 continue
             }
 
             // If token is already Cyrillic, keep it
             val hasLatin = trimmed.any { (it in 'a'..'z') || (it in 'A'..'Z') || (it in "äöüßÄÖÜ") }
             if (targetLang == "ru" && !hasLatin) {
-                sb.append(token)
+                translatedTokens.add(token)
                 continue
             }
 
             val lower = trimmed.lowercase()
 
-            // 1. Comprehensive Dictionary lookup (English & German with stemming)
+            // Skip standalone articles in Russian output (e.g. "the", "die", "der", "das")
+            if (targetLang == "ru" && (lower == "the" || lower == "a" || lower == "an" || lower == "die" || lower == "der" || lower == "das")) {
+                continue
+            }
+
+            // 1. Asset Bundled Dictionary lookup (350,000+ words from FreeDict TSV.GZ)
+            val assetMatch = AssetDictionaryManager.lookup(lower, srcLang)
+            if (assetMatch != null && assetMatch.isNotEmpty()) {
+                val formatted = if (trimmed[0].isUpperCase()) assetMatch.replaceFirstChar { it.uppercaseChar() } else assetMatch
+                translatedTokens.add(formatted)
+                continue
+            }
+
+            // 2. Comprehensive built-in dictionary
             val compMatch = if (srcLang == "de") {
                 ComprehensiveDictionary.lookupGerman(lower) ?: ComprehensiveDictionary.lookupEnglish(lower)
             } else {
                 ComprehensiveDictionary.lookupEnglish(lower) ?: ComprehensiveDictionary.lookupGerman(lower)
             }
 
-            if (compMatch != null) {
+            if (compMatch != null && compMatch.isNotEmpty()) {
                 val formatted = if (trimmed[0].isUpperCase()) compMatch.replaceFirstChar { it.uppercaseChar() } else compMatch
-                sb.append(formatted)
+                translatedTokens.add(formatted)
                 continue
             }
 
-            // 2. Direct dictionary lookup
+            // 3. Deconstruct concatenated words (e.g. "themilitaryamount" -> "military" + "amount")
+            val concatParts = AssetDictionaryManager.splitConcatenatedCompounds(lower, srcLang)
+            if (concatParts.size > 1) {
+                val translatedParts = concatParts.mapNotNull { p ->
+                    if (p == "the" || p == "a" || p == "an" || p == "die" || p == "der" || p == "das") null
+                    else {
+                        AssetDictionaryManager.lookup(p, srcLang)
+                            ?: ComprehensiveDictionary.lookupEnglish(p)
+                            ?: ComprehensiveDictionary.lookupGerman(p)
+                            ?: p
+                    }
+                }
+                if (translatedParts.isNotEmpty()) {
+                    translatedTokens.add(translatedParts.joinToString(" "))
+                    continue
+                }
+            }
+
+            // 4. Direct dictionary lookup
             val directMatch = DICTIONARY[lower]?.get(targetLang)
             if (directMatch != null) {
                 val formatted = if (trimmed[0].isUpperCase()) directMatch.replaceFirstChar { it.uppercaseChar() } else directMatch
-                sb.append(formatted)
+                translatedTokens.add(formatted)
                 continue
             }
 
-            // 3. Compound / CamelCase lookup (e.g. ScreenTranslator, Skullgirls)
+            // 5. Compound / CamelCase lookup (e.g. ScreenTranslator, Skullgirls)
             val subParts = splitCompoundWord(trimmed)
             if (subParts.size > 1) {
                 val subTranslations = subParts.map { part ->
-                    val pMatch = ComprehensiveDictionary.lookupEnglish(part.lowercase())
+                    val pMatch = AssetDictionaryManager.lookup(part.lowercase(), srcLang)
+                        ?: ComprehensiveDictionary.lookupEnglish(part.lowercase())
                         ?: ComprehensiveDictionary.lookupGerman(part.lowercase())
                         ?: DICTIONARY[part.lowercase()]?.get(targetLang)
                     if (pMatch != null) {
@@ -333,13 +386,29 @@ object OfflineTranslationEngine {
                         part
                     }
                 }
-                sb.append(subTranslations.joinToString(" "))
+                translatedTokens.add(subTranslations.joinToString(" "))
             } else {
-                sb.append(token)
+                translatedTokens.add(token)
             }
         }
 
-        val result = sb.toString().replace(Regex("\\s+"), " ").trim()
+        // Apply Russian Adjective-Noun grammatical agreement (e.g. "военный количество" -> "военное количество")
+        val finalTokens = mutableListOf<String>()
+        for (i in translatedTokens.indices) {
+            val curr = translatedTokens[i]
+            if (i > 0 && targetLang == "ru") {
+                val prev = finalTokens.lastOrNull()
+                if (prev != null && prev.any { it.isLetter() } && curr.any { it.isLetter() }) {
+                    val harmonizedPrev = LocalPhraseIntelligenceEngine.harmonizeRussianAdjectiveNoun(prev, curr)
+                    if (harmonizedPrev != prev) {
+                        finalTokens[finalTokens.size - 1] = harmonizedPrev
+                    }
+                }
+            }
+            finalTokens.add(curr)
+        }
+
+        val result = finalTokens.joinToString("").replace(Regex("\\s+"), " ").trim()
         return if (result.isNotBlank()) result.replaceFirstChar { it.uppercaseChar() } else text
     }
 }
