@@ -9,8 +9,8 @@ import java.util.concurrent.ConcurrentHashMap
 object AssetDictionaryManager {
     private const val TAG = "AssetDict"
 
-    private val enRuMap = ConcurrentHashMap<String, String>(60000)
-    private val deRuMap = ConcurrentHashMap<String, String>(30000)
+    private val enRuMap = ConcurrentHashMap<String, String>(50000)
+    private val deRuMap = ConcurrentHashMap<String, String>(75000)
     
     @Volatile
     var isLoaded = false

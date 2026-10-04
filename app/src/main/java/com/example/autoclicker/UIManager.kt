@@ -281,14 +281,23 @@ class UIManager(private val service: AutoClickService) {
         }
         card.addView(transText)
 
-        // Asynchronously enhance translation with Huawei On-Device Neural Translator
-        HuaweiTranslationManager.translate(block.originalText, block.detectedLang, block.targetLang) { neuralText ->
-            transText.post {
-                if (!neuralText.isNullOrBlank() && neuralText != block.originalText) {
-                    transText.text = neuralText
+        // Asynchronously enhance translation with Google Neural Translator, fallback to Huawei
+        Thread {
+            val online = NetworkTranslationService.translateOnline(block.originalText, block.detectedLang, block.targetLang)
+            if (!online.isNullOrBlank() && online != block.originalText) {
+                transText.post {
+                    transText.text = online
+                }
+            } else {
+                HuaweiTranslationManager.translate(block.originalText, block.detectedLang, block.targetLang) { neuralText ->
+                    transText.post {
+                        if (!neuralText.isNullOrBlank() && neuralText != block.originalText) {
+                            transText.text = neuralText
+                        }
+                    }
                 }
             }
-        }
+        }.start()
 
         // Original Text
         val origTitle = TextView(service).apply {

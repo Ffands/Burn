@@ -17,6 +17,10 @@ object HuaweiTranslationManager {
 
     private fun getPairKey(src: String, target: String): String = "${src.lowercase()}_${target.lowercase()}"
 
+    fun isModelReady(srcLang: String, targetLang: String): Boolean {
+        return readyModels[getPairKey(srcLang, targetLang)] == true
+    }
+
     fun getLocalTranslator(srcLang: String, targetLang: String): MLLocalTranslator {
         val key = getPairKey(srcLang, targetLang)
         return translators.getOrPut(key) {

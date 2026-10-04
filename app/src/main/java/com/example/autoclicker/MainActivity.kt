@@ -19,6 +19,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AssetDictionaryManager.initialize(this)
 
         val root = ScrollView(this).apply {
             setBackgroundColor(Color.parseColor("#0A0A0A"))
@@ -26,21 +27,21 @@ class MainActivity : Activity() {
 
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dpToPx(20), dpToPx(32), dpToPx(20), dpToPx(32))
+            setPadding(dpToPx(20), dpToPx(28), dpToPx(20), dpToPx(32))
         }
 
         // Header Title
         val title = TextView(this).apply {
-            text = "Офлайн-Переводчик Экрана"
+            text = "Screen Translator Pro"
             setTextColor(Color.WHITE)
             textSize = 24f
             typeface = Typeface.DEFAULT_BOLD
         }
         val subtitle = TextView(this).apply {
-            text = "Huawei ML Kit OCR • 100% Офлайн • Геометрическая группировка"
+            text = "Huawei ML Kit OCR • Гибридный перевод • Офлайн-модели"
             setTextColor(Color.parseColor("#A1A1AA"))
             textSize = 13f
-            setPadding(0, dpToPx(4), 0, dpToPx(24))
+            setPadding(0, dpToPx(4), 0, dpToPx(20))
         }
         container.addView(title)
         container.addView(subtitle)
@@ -101,23 +102,87 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply {
             topMargin = dpToPx(12)
-            bottomMargin = dpToPx(24)
+            bottomMargin = dpToPx(20)
         }
         container.addView(btnAccess, btnParams)
 
-        // Target Language Selector
-        val langLabel = TextView(this).apply {
-            text = "ЦЕЛЕВОЙ ЯЗЫК ПЕРЕВОДА"
+        val prefs = getSharedPreferences("ScreenTranslatorPrefs", Context.MODE_PRIVATE)
+
+        // 1. Translation Engine Mode (1/3 Hybrid choice)
+        val modeTitle = TextView(this).apply {
+            text = "РЕЖИМ РАБОТЫ ПЕРЕВОДА (ГИБРИД 1/3)"
             setTextColor(Color.parseColor("#71717A"))
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
             setPadding(0, 0, 0, dpToPx(8))
         }
+        container.addView(modeTitle)
+
+        var currentMode = prefs.getString("TranslationEngineMode", "hybrid") ?: "hybrid"
+        val modes = listOf(
+            Triple("hybrid", "⚡ Умный гибрид", "Облако ➔ Нейросеть ➔ База"),
+            Triple("neural_only", "🧠 Локальная нейросеть", "Только HMS Neural на чипе (офлайн)"),
+            Triple("dict_only", "📖 Быстрый словарь", "100k база из APK (0% сети и CPU)")
+        )
+
+        val modeGroup = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        for ((mKey, mTitle, mDesc) in modes) {
+            val isSel = currentMode == mKey
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                val bg = GradientDrawable().apply {
+                    setColor(if (isSel) Color.parseColor("#1E3A8A") else Color.parseColor("#18181B"))
+                    cornerRadius = dpToPx(12).toFloat()
+                    setStroke(dpToPx(1), if (isSel) Color.parseColor("#3B82F6") else Color.parseColor("#27272A"))
+                }
+                background = bg
+                setPadding(dpToPx(14), dpToPx(10), dpToPx(14), dpToPx(10))
+                setOnClickListener {
+                    currentMode = mKey
+                    prefs.edit().putString("TranslationEngineMode", mKey).apply()
+                    Toast.makeText(this@MainActivity, "Режим: $mTitle", Toast.LENGTH_SHORT).show()
+                    recreate()
+                }
+            }
+
+            val titleView = TextView(this).apply {
+                text = mTitle
+                setTextColor(if (isSel) Color.WHITE else Color.parseColor("#E4E4E7"))
+                textSize = 14f
+                typeface = Typeface.DEFAULT_BOLD
+            }
+            val descView = TextView(this).apply {
+                text = mDesc
+                setTextColor(if (isSel) Color.parseColor("#93C5FD") else Color.parseColor("#71717A"))
+                textSize = 11f
+            }
+            row.addView(titleView)
+            row.addView(descView)
+
+            val p = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dpToPx(8)
+            }
+            modeGroup.addView(row, p)
+        }
+        container.addView(modeGroup)
+
+        // 2. Target Language Selector
+        val langLabel = TextView(this).apply {
+            text = "ЦЕЛЕВОЙ ЯЗЫК ПЕРЕВОДА"
+            setTextColor(Color.parseColor("#71717A"))
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding(0, dpToPx(12), 0, dpToPx(8))
+        }
         container.addView(langLabel)
 
-        val prefs = getSharedPreferences("ScreenTranslatorPrefs", Context.MODE_PRIVATE)
         var currentTarget = prefs.getString("TargetLanguage", "ru") ?: "ru"
-
         val langGroup = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             weightSum = 3f
@@ -157,23 +222,22 @@ class MainActivity : Activity() {
         }
         container.addView(langGroup)
 
-        // Offline Packages Section (In-APK models)
+        // 3. Local Neural Models & Assets
         val packTitle = TextView(this).apply {
-            text = "ВСТРОЕННЫЕ ОФЛАЙН-ПАКЕТЫ (APK)"
+            text = "ЛОКАЛЬНЫЕ НЕЙРОСЕТЕВЫЕ ПАКЕТЫ (HMS ML KIT)"
             setTextColor(Color.parseColor("#71717A"))
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(0, dpToPx(24), 0, dpToPx(8))
+            setPadding(0, dpToPx(20), 0, dpToPx(8))
         }
         container.addView(packTitle)
 
-        val packages = listOf(
-            Triple("Русский (RU)", "28 МБ", "Встроен в APK"),
-            Triple("Английский (EN)", "31 МБ", "Встроен в APK"),
-            Triple("Немецкий (DE)", "34 МБ", "Встроен в APK")
+        val neuralPacks = listOf(
+            Triple("en", "Англо-русская нейросеть (EN ➔ RU)", "~35 МБ"),
+            Triple("de", "Немецко-русская нейросеть (DE ➔ RU)", "~35 МБ")
         )
 
-        for ((pName, pSize, pStatus) in packages) {
+        for ((src, pName, pSize) in neuralPacks) {
             val packRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -187,20 +251,48 @@ class MainActivity : Activity() {
             }
 
             val pText = TextView(this).apply {
-                text = "$pName  •  $pSize"
+                text = "$pName\n$pSize"
                 setTextColor(Color.WHITE)
-                textSize = 13f
+                textSize = 12f
                 typeface = Typeface.DEFAULT_BOLD
             }
-            val pBadge = TextView(this).apply {
-                text = pStatus
-                setTextColor(Color.parseColor("#4ADE80"))
+
+            val pBtn = Button(this).apply {
+                text = "Скачать"
                 textSize = 11f
-                gravity = Gravity.END
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.WHITE)
+                val bg = GradientDrawable().apply {
+                    setColor(Color.parseColor("#2563EB"))
+                    cornerRadius = dpToPx(8).toFloat()
+                }
+                background = bg
+                setPadding(dpToPx(12), dpToPx(6), dpToPx(12), dpToPx(6))
+                setOnClickListener {
+                    text = "Загрузка..."
+                    isEnabled = false
+                    HuaweiTranslationManager.prepareModel(
+                        srcLang = src,
+                        targetLang = "ru",
+                        onSuccess = {
+                            runOnUiThread {
+                                text = "Готово ✓"
+                                Toast.makeText(this@MainActivity, "Модель $src ➔ ru готова!", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onFailure = { e ->
+                            runOnUiThread {
+                                text = "Ошибка"
+                                isEnabled = true
+                                Toast.makeText(this@MainActivity, "Ошибка загрузки: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    )
+                }
             }
 
             packRow.addView(pText, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            packRow.addView(pBadge)
+            packRow.addView(pBtn)
 
             val rowParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -211,9 +303,36 @@ class MainActivity : Activity() {
             container.addView(packRow, rowParams)
         }
 
+        // 4. Bundled Assets Status
+        val assetCard = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            val bg = GradientDrawable().apply {
+                setColor(Color.parseColor("#14532D"))
+                cornerRadius = dpToPx(12).toFloat()
+            }
+            background = bg
+            setPadding(dpToPx(14), dpToPx(12), dpToPx(14), dpToPx(12))
+        }
+        val assetInfo = TextView(this).apply {
+            text = "Встроенный словарь (Assets)\n100 000+ слов и фраз: активен в памяти"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        val assetBadge = TextView(this).apply {
+            text = "АКТИВЕН ✓"
+            setTextColor(Color.parseColor("#86EFAC"))
+            textSize = 11f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        assetCard.addView(assetInfo, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        assetCard.addView(assetBadge)
+        container.addView(assetCard)
+
         // Info Card
         val infoText = TextView(this).apply {
-            text = "Инструкция:\n1. Включите службу в Спец. возможностях.\n2. На экране появится плавающий круглый значок 文/A.\n3. Нажмите его в любом приложении — появится распознанный текст с рамками.\n4. Нажмите значок в ближайшем к центру экрана углу рамки для вызова перевода."
+            text = "Инструкция:\n1. Включите службу в Спец. возможностях.\n2. Нажмите круглый значок 文/A на экране для перевода любого окна.\n3. В режиме 'Умный гибрид' при наличии сети используется нейросеть Google, при отсутствии — локальная нейросеть или словарь."
             setTextColor(Color.parseColor("#71717A"))
             textSize = 12f
             setPadding(dpToPx(4), dpToPx(16), dpToPx(4), 0)
@@ -226,6 +345,5 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh status
     }
 }

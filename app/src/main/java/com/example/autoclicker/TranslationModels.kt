@@ -221,8 +221,7 @@ object LanguageDetectorOffline {
      * Determines whether text contains any foreign content that can and should be translated into targetLang.
      */
     fun hasTranslatableContent(text: String, targetLang: String): Boolean {
-        val sanitized = OfflineTranslationEngine.sanitizeOcrHomoglyphs(text)
-        val clean = sanitized.trim()
+        val clean = text.trim()
         if (isIgnorableNoise(clean)) return false
 
         var cyrillicCount = 0
@@ -238,8 +237,8 @@ object LanguageDetectorOffline {
 
         return when (targetLang) {
             "ru" -> {
-                // If text is predominantly Russian (> 75% Cyrillic), do not flag as translatable into Russian
-                if (cyrillicCount > 0 && cyrillicCount >= latinCount * 3) {
+                // If text is predominantly Cyrillic / Russian, do NOT flag as translatable into Russian!
+                if (cyrillicCount >= 3 && cyrillicCount >= latinCount) {
                     false
                 } else {
                     latinCount >= 2 || GERMAN_UMLAUTS.containsMatchIn(clean)

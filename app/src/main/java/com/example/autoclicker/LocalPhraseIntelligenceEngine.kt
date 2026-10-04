@@ -77,7 +77,21 @@ object LocalPhraseIntelligenceEngine {
         IdiomEntry(Pattern.compile("(?i)\\bmehr\\s+oder\\s+weniger\\b"), "более или менее"),
         IdiomEntry(Pattern.compile("(?i)\\bwie\\s+geht\\s*('s|\\s+es)\\b"), "как дела"),
         IdiomEntry(Pattern.compile("(?i)\\balles\\s+klar\\b"), "всё ясно"),
-        IdiomEntry(Pattern.compile("(?i)\\bmoin\\s+moin\\b"), "привет")
+        IdiomEntry(Pattern.compile("(?i)\\bmoin\\s+moin\\b"), "привет"),
+
+        // Formal Correspondence & Everyday Self-Introduction
+        IdiomEntry(Pattern.compile("(?i)\\bsehr\\s+geehrte\\s+damen\\s+und\\s+herren\\b"), "Уважаемые дамы и господа"),
+        IdiomEntry(Pattern.compile("(?i)\\bich\\s+heiße\\b"), "меня зовут"),
+        IdiomEntry(Pattern.compile("(?i)\\bmein\\s+name\\s+ist\\b"), "меня зовут"),
+        IdiomEntry(Pattern.compile("(?i)\\bmit\\s+freundlichen\\s+grüßen\\b"), "С уважением"),
+        IdiomEntry(Pattern.compile("(?i)\\bvielen\\s+dank\\s+für\\s+ihre\\s+unterstützung\\b"), "Большое спасибо за вашу поддержку"),
+        IdiomEntry(Pattern.compile("(?i)\\bich\\s+freue\\s+mich\\s+auf\\b"), "я с нетерпением жду"),
+        IdiomEntry(Pattern.compile("(?i)\\bich\\s+interessiere\\s+mich\\s+für\\b"), "я интересуюсь"),
+        IdiomEntry(Pattern.compile("(?i)\\bkönnten\\s+sie\\s+mir\\s+bitte\\b"), "не могли бы вы"),
+        IdiomEntry(Pattern.compile("(?i)\\baußerdem\\s+möchte\\s+ich\\s+wissen\\b"), "кроме того я хотел бы знать"),
+        IdiomEntry(Pattern.compile("(?i)\\bich\\s+bin\\s+(\\d+)\\s+jahre\\s+alt\\b"), "мне $1 лет"),
+        IdiomEntry(Pattern.compile("(?i)\\b(\\d+)\\s+jahre\\s+alt\\b"), "$1 лет"),
+        IdiomEntry(Pattern.compile("(?i)\\bjahre\\s+alt\\b"), "лет")
     )
 
     /**

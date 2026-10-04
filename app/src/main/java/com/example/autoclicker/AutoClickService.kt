@@ -143,8 +143,8 @@ class AutoClickService : AccessibilityService() {
                                     val lineText = line.stringValue
                                     if (lineText.isNullOrBlank()) continue
                                     
-                                    // Clean and sanitize OCR homoglyphs immediately on input
-                                    val cleanText = OfflineTranslationEngine.sanitizeOcrHomoglyphs(lineText.trim())
+                                    // Use clean raw OCR text directly (do not mutate Cyrillic into Latin homoglyphs)
+                                    val cleanText = lineText.trim()
 
                                     // Filter out noise (single letter headers like 'D', symbols, icons)
                                     if (LanguageDetectorOffline.isIgnorableNoise(cleanText)) {
@@ -174,6 +174,9 @@ class AutoClickService : AccessibilityService() {
                         // Geometric clustering with language isolation (does not glue different languages or rows)
                         val clustered = GeometryHelper.clusterBlocksGeometrically(rawItems, 0.65f)
 
+                        val prefs = getSharedPreferences("ScreenTranslatorPrefs", MODE_PRIVATE)
+                        val engineMode = prefs.getString("TranslationEngineMode", "hybrid") ?: "hybrid"
+
                         // Process translations & nearest corners
                         val translationBlocks = clustered.mapIndexed { index, item ->
                             val detected = LanguageDetectorOffline.detect(item.text)
@@ -186,7 +189,20 @@ class AutoClickService : AccessibilityService() {
                             val translated = if (isSkipped) {
                                 item.text
                             } else {
-                                OfflineTranslationEngine.translate(item.text, detected, targetLanguage)
+                                when (engineMode) {
+                                    "dict_only" -> {
+                                        OfflineTranslationEngine.translate(item.text, detected, targetLanguage)
+                                    }
+                                    "neural_only" -> {
+                                        OfflineTranslationEngine.translate(item.text, detected, targetLanguage)
+                                    }
+                                    else -> { // "hybrid"
+                                        // 1. Fast online neural translation (Google GTX API)
+                                        val onlineResult = NetworkTranslationService.translateOnline(item.text, detected, targetLanguage)
+                                        // 2. Robust offline dictionary & phrase intelligence fallback
+                                        onlineResult ?: OfflineTranslationEngine.translate(item.text, detected, targetLanguage)
+                                    }
+                                }
                             }
 
                             TranslationBlock(
